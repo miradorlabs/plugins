@@ -5,9 +5,7 @@
 
 // Plugin system
 export { Web3Plugin } from './web3-plugin';
-export type { Web3PluginOptions, Web3Methods } from './web3-plugin';
-export { SafePlugin } from './safe-plugin';
-export type { SafeMethods } from './safe-plugin';
+export type { Web3PluginOptions, Web3Methods, EvmMethods, SafeNamespaceMethods } from './web3-plugin';
 export type {
   MiradorPlugin,
   TraceContext,

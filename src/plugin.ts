@@ -79,18 +79,36 @@ type UnionToIntersection<U> =
 
 /**
  * Transform plugin methods so void-returning methods return the full chain type.
- * This mirrors runtime behavior where the wrapper returns `this` for void methods.
+ * Recursively handles nested namespace objects.
+ *
+ * @template TRoot  The full merged methods (used as chain return after void calls)
+ * @template TCurrent  The current nesting level being transformed
+ * @template TBase  Base type (e.g. Trace) merged into chain return
  */
-type WithChaining<TMethods, TBase> = {
-  [K in keyof TMethods]: TMethods[K] extends (...args: infer A) => void
-    ? (...args: A) => TBase & WithChaining<TMethods, TBase>
-    : TMethods[K];
+type WithChaining<TRoot, TCurrent, TBase> = {
+  [K in keyof TCurrent]:
+    TCurrent[K] extends (...args: infer A) => void
+      ? (...args: A) => TBase & WithChaining<TRoot, TRoot, TBase>  // void fn → return root
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      : TCurrent[K] extends (...args: any[]) => any
+        ? TCurrent[K]                                               // non-void fn → keep as-is
+        : TCurrent[K] extends object
+          ? WithChaining<TRoot, TCurrent[K], TBase>                 // namespace → recurse
+          : TCurrent[K];
 };
 
 /**
  * Merge methods from an array of plugins into a single intersection type.
+ * Supports nested namespace objects (e.g. `{ web3: { evm: { addTxHint() } } }`).
+ * TypeScript's intersection naturally deep-merges shared namespaces.
+ *
  * @template P Array of plugin types
  * @template TBase Base type (e.g. Trace) used as return type for void-returning methods to enable chaining
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type MergedPluginMethods<P extends readonly MiradorPlugin<any>[], TBase = unknown> =
-  WithChaining<UnionToIntersection<PluginMethods<P[number]>>, TBase>;
+  WithChaining<
+    UnionToIntersection<PluginMethods<P[number]>>,
+    UnionToIntersection<PluginMethods<P[number]>>,
+    TBase
+  >;
