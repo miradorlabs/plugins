@@ -4,15 +4,19 @@
  */
 import type { MiradorPlugin, PluginSetupResult, TraceContext, FlushBuilder } from './plugin';
 import { HintType } from './hints';
-import type {
-  ChainName,
-  EIP1193Provider,
-  TxHintOptions,
-  TransactionLike,
-  TransactionRequest,
-  TxHashHint,
+import {
+  Chain,
+  Severity,
+  type ChainInput,
+  type EIP1193Provider,
+  type TxHintOptions,
+  type TransactionLike,
+  type TransactionRequest,
+  type TxHashHint,
+  type SafeMsgHintData,
+  type SafeTxHintData,
 } from './types';
-import { chainIdToName } from './chains';
+import { toChain, resolveChainInput } from './chains';
 
 /** Options for the Web3Plugin */
 export interface Web3PluginOptions {
@@ -20,15 +24,26 @@ export interface Web3PluginOptions {
   provider?: EIP1193Provider;
 }
 
-/** The methods that Web3Plugin adds to Trace */
-export interface Web3Methods {
-  addTxHint(txHash: string, chain: ChainName, options?: string | TxHintOptions): void;
-  addTxInputData(inputData: string): void;
-  addTx(tx: TransactionLike, chain?: ChainName): void;
+/** The leaf methods that Web3Plugin exposes under web3.evm */
+export interface EvmMethods {
+  addTxHint(txHash: string, chain: ChainInput, options?: string | TxHintOptions): void;
+  addInputData(inputData: string): void;
+  addTx(tx: TransactionLike, chain?: ChainInput): void;
   setProvider(provider: EIP1193Provider): void;
-  getProviderChain(): ChainName | null;
-  resolveChain(chain?: ChainName, chainId?: number | bigint | string): ChainName;
+  getProviderChain(): Chain | null;
+  resolveChain(chain?: ChainInput, chainId?: number | bigint | string): Chain;
   sendTransaction(tx: TransactionRequest, provider?: EIP1193Provider): Promise<string>;
+}
+
+/** The leaf methods that Web3Plugin exposes under web3.safe */
+export interface SafeNamespaceMethods {
+  addMsgHint(msgHash: string, chain: ChainInput, details?: string): void;
+  addTxHint(safeTxHash: string, chain: ChainInput, details?: string): void;
+}
+
+/** The namespaced methods that Web3Plugin adds to Trace */
+export interface Web3Methods {
+  web3: { evm: EvmMethods; safe: SafeNamespaceMethods };
 }
 
 /**
@@ -65,7 +80,9 @@ function serializeTxParams(tx: TransactionRequest): Record<string, string | unde
  *   plugins: [Web3Plugin({ provider: window.ethereum })],
  * });
  * const trace = client.trace({ name: 'swap' });
- * trace.addTxHint('0x...', 'ethereum');
+ * trace.web3.evm.addTxHint('0x...', Chain.Ethereum);
+ * // or with chain name string:
+ * trace.web3.evm.addTxHint('0x...', 'ethereum');
  * ```
  */
 export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Methods> {
@@ -75,70 +92,73 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
     setup(ctx: TraceContext): PluginSetupResult<Web3Methods> {
       // Plugin-local state (closure)
       let provider: EIP1193Provider | null = options?.provider ?? null;
-      let providerChainName: ChainName | null = null;
+      let providerChain: Chain | null = null;
 
       // Pending data managed by this plugin
       const pendingTxHashHints: TxHashHint[] = [];
+      const pendingSafeMsgHints: SafeMsgHintData[] = [];
+      const pendingSafeTxHints: SafeTxHintData[] = [];
 
       // Initiate async chain detection if provider was given
       if (provider) {
         provider.request({ method: 'eth_chainId' }).then((chainId) => {
-          providerChainName = chainIdToName(Number(chainId as string)) ?? null;
+          providerChain = toChain(Number(chainId as string)) ?? null;
         }).catch(() => { /* ignore */ });
       }
 
       // --- Method implementations ---
 
-      function addTxHint(txHash: string, chain: ChainName, opts?: string | TxHintOptions): void {
+      function addTxHint(txHash: string, chain: ChainInput, opts?: string | TxHintOptions): void {
         if (ctx.isClosed()) {
           ctx.logger.warn('[Web3Plugin] Trace is closed, ignoring addTxHint');
           return;
         }
+        const resolved = resolveChainInput(chain);
         let details: string | undefined;
         if (typeof opts === 'string') {
           details = opts;
         } else if (opts) {
-          if (opts.input) { addTxInputData(opts.input); }
+          if (opts.input) { addInputData(opts.input); }
           details = opts.details;
         }
-        pendingTxHashHints.push({ txHash, chain, details, timestamp: new Date() });
+        pendingTxHashHints.push({ txHash, chain: resolved, details, timestamp: new Date() });
         ctx.scheduleFlush();
       }
 
-      function addTxInputData(inputData: string): void {
+      function addInputData(inputData: string): void {
         if (!inputData || inputData === '0x') return;
         ctx.addEvent('Tx input data', inputData);
       }
 
-      function addTx(tx: TransactionLike, chain?: ChainName): void {
+      function addTx(tx: TransactionLike, chain?: ChainInput): void {
         if (ctx.isClosed()) {
           ctx.logger.warn('[Web3Plugin] Trace is closed, ignoring addTx');
           return;
         }
         const resolvedChain = resolveChain(chain, tx.chainId);
         const input = tx.data ?? tx.input;
-        if (input) { addTxInputData(input); }
+        if (input) { addInputData(input); }
         addTxHint(tx.hash, resolvedChain);
       }
 
       function setProviderFn(p: EIP1193Provider): void {
         provider = p;
         p.request({ method: 'eth_chainId' }).then((chainId) => {
-          providerChainName = chainIdToName(Number(chainId as string)) ?? null;
+          providerChain = toChain(Number(chainId as string)) ?? null;
         }).catch(() => { /* ignore */ });
       }
 
-      function getProviderChain(): ChainName | null {
-        return providerChainName;
+      function getProviderChain(): Chain | null {
+        return providerChain;
       }
 
-      function resolveChain(chain?: ChainName, chainId?: number | bigint | string): ChainName {
-        if (chain) return chain;
+      function resolveChain(chain?: ChainInput, chainId?: number | bigint | string): Chain {
+        if (chain !== undefined) return resolveChainInput(chain);
         if (chainId !== undefined) {
-          const resolved = chainIdToName(chainId);
+          const resolved = toChain(chainId);
           if (resolved) return resolved;
         }
-        if (providerChainName) return providerChainName;
+        if (providerChain) return providerChain;
         throw new Error('[Web3Plugin] Cannot determine chain. Provide chain parameter, chainId, or set a provider.');
       }
 
@@ -150,7 +170,9 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
           to: tx.to,
           value: tx.value?.toString(),
           data: tx.data ? `${tx.data.slice(0, 10)}...` : undefined,
-        });
+        }, { severity: Severity.Info });
+
+        const chain = resolveChain(undefined, tx.chainId);
 
         try {
           const txHash = await p.request({
@@ -158,10 +180,9 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
             params: [serializeTxParams(tx)],
           }) as string;
 
-          const chain = resolveChain(undefined, tx.chainId);
-          if (tx.data) { addTxInputData(tx.data); }
+          if (tx.data) { addInputData(tx.data); }
           addTxHint(txHash, chain);
-          ctx.addEvent('tx:sent', { txHash });
+          ctx.addEvent('tx:sent', { txHash }, { severity: Severity.Info });
           return txHash;
         } catch (err) {
           const error = err as Error & { code?: unknown; data?: unknown };
@@ -169,9 +190,31 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
             message: error.message,
             code: error.code,
             data: error.data,
-          });
+          }, { severity: Severity.Error });
           throw err;
         }
+      }
+
+      // --- Safe methods ---
+
+      function safeAddMsgHint(msgHash: string, chain: ChainInput, details?: string): void {
+        if (ctx.isClosed()) {
+          ctx.logger.warn('[Web3Plugin] Trace is closed, ignoring addMsgHint');
+          return;
+        }
+        const resolved = resolveChainInput(chain);
+        pendingSafeMsgHints.push({ messageHash: msgHash, chain: resolved, details, timestamp: new Date() });
+        ctx.scheduleFlush();
+      }
+
+      function safeAddTxHint(safeTxHash: string, chain: ChainInput, details?: string): void {
+        if (ctx.isClosed()) {
+          ctx.logger.warn('[Web3Plugin] Trace is closed, ignoring addTxHint');
+          return;
+        }
+        const resolved = resolveChainInput(chain);
+        pendingSafeTxHints.push({ safeTxHash, chain: resolved, details, timestamp: new Date() });
+        ctx.scheduleFlush();
       }
 
       // --- Lifecycle hooks ---
@@ -181,32 +224,56 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
           builder.addHint(HintType.TX_HASH, hint);
         }
         pendingTxHashHints.length = 0;
+
+        for (const hint of pendingSafeMsgHints) {
+          builder.addHint(HintType.SAFE_MSG, hint);
+        }
+        pendingSafeMsgHints.length = 0;
+
+        for (const hint of pendingSafeTxHints) {
+          builder.addHint(HintType.SAFE_TX, hint);
+        }
+        pendingSafeTxHints.length = 0;
       }
 
       function hasPendingData(): boolean {
-        return pendingTxHashHints.length > 0;
+        return pendingTxHashHints.length > 0 || pendingSafeMsgHints.length > 0 || pendingSafeTxHints.length > 0;
       }
 
       function onClose(): void {
         pendingTxHashHints.length = 0;
+        pendingSafeMsgHints.length = 0;
+        pendingSafeTxHints.length = 0;
         provider = null;
-        providerChainName = null;
+        providerChain = null;
       }
 
       return {
         methods: {
-          addTxHint,
-          addTxInputData,
-          addTx,
-          setProvider: setProviderFn,
-          getProviderChain,
-          resolveChain,
-          sendTransaction,
+          web3: {
+            evm: {
+              addTxHint,
+              addInputData,
+              addTx,
+              setProvider: setProviderFn,
+              getProviderChain,
+              resolveChain,
+              sendTransaction,
+            },
+            safe: {
+              addMsgHint: safeAddMsgHint,
+              addTxHint: safeAddTxHint,
+            },
+          },
         },
         noopMethods: {
-          getProviderChain: () => null,
-          sendTransaction: () => Promise.resolve(''),
-        } as Partial<Web3Methods>,
+          web3: {
+            evm: {
+              getProviderChain: () => null,
+              sendTransaction: () => Promise.resolve(''),
+            },
+          },
+        },
         onFlush,
         onClose,
         hasPendingData,

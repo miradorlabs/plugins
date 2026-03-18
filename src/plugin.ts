@@ -2,7 +2,7 @@
  * Plugin system types for the Mirador SDK.
  * Plugins extend Trace with additional methods via flat merge.
  */
-import type { Logger, AddEventOptions } from './types';
+import type { Logger, AddEventOptions, Severity } from './types';
 import type { HintDataMap, HintTypeName } from './hints';
 
 /**
@@ -34,10 +34,20 @@ export interface FlushBuilder {
     name: string;
     details?: string;
     timestamp: Date;
+    severity?: Severity;
   }): void;
   addAttribute(key: string, value: string): void;
   addTag(tag: string): void;
 }
+
+/** Recursive partial — allows partially specifying nested namespace objects. */
+export type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends (...args: infer A) => infer R
+    ? (...args: A) => R
+    : T[K] extends object
+      ? DeepPartial<T[K]>
+      : T[K];
+};
 
 /**
  * The result of plugin setup — methods to merge onto Trace,
@@ -48,7 +58,7 @@ export interface PluginSetupResult<TMethods> {
   methods: TMethods;
   /** No-op versions of methods for NoopTrace (sampled-out traces).
    *  If not provided, methods default to returning `this` for chaining. */
-  noopMethods?: Partial<TMethods>;
+  noopMethods?: DeepPartial<TMethods>;
   /** Called during flush to contribute data to the TraceData payload */
   onFlush?(builder: FlushBuilder): void;
   /** Called when the trace is being closed */
@@ -79,18 +89,36 @@ type UnionToIntersection<U> =
 
 /**
  * Transform plugin methods so void-returning methods return the full chain type.
- * This mirrors runtime behavior where the wrapper returns `this` for void methods.
+ * Recursively handles nested namespace objects.
+ *
+ * @template TRoot  The full merged methods (used as chain return after void calls)
+ * @template TCurrent  The current nesting level being transformed
+ * @template TBase  Base type (e.g. Trace) merged into chain return
  */
-type WithChaining<TMethods, TBase> = {
-  [K in keyof TMethods]: TMethods[K] extends (...args: infer A) => void
-    ? (...args: A) => TBase & WithChaining<TMethods, TBase>
-    : TMethods[K];
+type WithChaining<TRoot, TCurrent, TBase> = {
+  [K in keyof TCurrent]:
+    TCurrent[K] extends (...args: infer A) => void
+      ? (...args: A) => TBase & WithChaining<TRoot, TRoot, TBase>  // void fn → return root
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      : TCurrent[K] extends (...args: any[]) => any
+        ? TCurrent[K]                                               // non-void fn → keep as-is
+        : TCurrent[K] extends object
+          ? WithChaining<TRoot, TCurrent[K], TBase>                 // namespace → recurse
+          : TCurrent[K];
 };
 
 /**
  * Merge methods from an array of plugins into a single intersection type.
+ * Supports nested namespace objects (e.g. `{ web3: { evm: { addTxHint() } } }`).
+ * TypeScript's intersection naturally deep-merges shared namespaces.
+ *
  * @template P Array of plugin types
  * @template TBase Base type (e.g. Trace) used as return type for void-returning methods to enable chaining
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type MergedPluginMethods<P extends readonly MiradorPlugin<any>[], TBase = unknown> =
-  WithChaining<UnionToIntersection<PluginMethods<P[number]>>, TBase>;
+  WithChaining<
+    UnionToIntersection<PluginMethods<P[number]>>,
+    UnionToIntersection<PluginMethods<P[number]>>,
+    TBase
+  >;

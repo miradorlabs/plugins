@@ -9,10 +9,9 @@ plugins/                    # This package (proto-free)
 ├── src/
 │   ├── plugin.ts           # Core interfaces: MiradorPlugin, TraceContext, FlushBuilder
 │   ├── hints.ts            # HintType constants + HintDataMap type registry
-│   ├── types.ts            # Shared types: ChainName, TxHashHint, Logger, etc.
-│   ├── chains.ts           # chainIdToName() utility
-│   ├── web3-plugin.ts      # Web3Plugin — tx hints, sendTransaction, provider mgmt
-│   ├── safe-plugin.ts      # SafePlugin — Safe message + tx hints
+│   ├── types.ts            # Shared types: Chain, ChainInput, TxHashHint, Logger, etc.
+│   ├── chains.ts           # toChain(), resolveChainInput() utilities
+│   ├── web3-plugin.ts      # Web3Plugin — tx hints, sendTransaction, provider mgmt, Safe hints
 │   └── index.ts            # Public exports
 
 web-sdk/src/ingest/
@@ -32,47 +31,47 @@ nodejs-sdk/src/ingest/
 
 ### Web3Plugin
 
-Adds blockchain transaction tracing methods to traces.
+Adds blockchain transaction tracing methods under `trace.web3.evm` and Gnosis Safe multisig tracking under `trace.web3.safe`.
 
 ```typescript
-import { Client, Web3Plugin, SafePlugin } from '@miradorlabs/web-sdk';
-// or: import { Client, Web3Plugin, SafePlugin } from '@miradorlabs/nodejs-sdk';
+import { Client, Web3Plugin } from '@miradorlabs/web-sdk';
+// or: import { Client, Web3Plugin } from '@miradorlabs/nodejs-sdk';
 
 const client = new Client('your-api-key', {
-  plugins: [Web3Plugin({ provider: window.ethereum }), SafePlugin()],
+  plugins: [Web3Plugin({ provider: window.ethereum })],
 });
 
 const trace = client.trace({ name: 'swap' });
 
-// Methods added by Web3Plugin:
-trace.addTxHint('0x123...', 'ethereum');               // Record a tx hash
-trace.addTxHint('0x456...', 'polygon', { input: '0x...' }); // With calldata
-trace.addTx({ hash: '0x...', chainId: 1 });            // From a tx object
-trace.addTxInputData('0xabcdef...');                    // Raw calldata
-const txHash = await trace.sendTransaction(txParams);   // Send + auto-track
-trace.setProvider(newProvider);                          // Change provider
-trace.getProviderChain();                               // Get detected chain
-trace.resolveChain('ethereum');                          // Resolve chain name
-```
+// EVM methods (under web3.evm namespace):
+trace.web3.evm.addTxHint('0x123...', 'ethereum');               // Record a tx hash
+trace.web3.evm.addTxHint('0x456...', 'polygon', { input: '0x...' }); // With calldata
+trace.web3.evm.addTx({ hash: '0x...', chainId: 1 });            // From a tx object
+trace.web3.evm.addInputData('0xabcdef...');                      // Raw calldata
+trace.web3.evm.resolveChain('ethereum');                         // Resolve chain name
 
-### SafePlugin
+// Provider management:
+trace.web3.evm.setProvider(newProvider);                          // Switch provider
+trace.web3.evm.getProviderChain();                               // Get detected chain
 
-Adds Gnosis Safe multisig tracking methods.
+// Send a transaction (auto-captures tx hash + chain):
+const txHash = await trace.web3.evm.sendTransaction(txParams);
+// Or with an explicit provider:
+const txHash2 = await trace.web3.evm.sendTransaction(txParams, otherProvider);
 
-```typescript
-// Methods added by SafePlugin:
-trace.addSafeMsgHint('0xmsg...', 'ethereum', 'Approval message');
-trace.addSafeTxHint('0xsafetx...', 'ethereum', 'Execution tx');
+// Safe methods (under web3.safe namespace):
+trace.web3.safe.addMsgHint('0xmsg...', 'ethereum', 'Approval message');
+trace.web3.safe.addTxHint('0xsafetx...', 'ethereum', 'Execution tx');
 ```
 
 ### Method Chaining
 
-All void-returning plugin methods support chaining:
+All void-returning plugin methods support chaining. Chained calls return the root Trace, so you can mix namespaces and core methods freely:
 
 ```typescript
 trace
-  .addTxHint('0x123...', 'ethereum')
-  .addSafeMsgHint('0xabc...', 'ethereum')
+  .web3.evm.addTxHint('0x123...', 'ethereum')
+  .web3.safe.addMsgHint('0xabc...', 'ethereum')
   .addAttribute('user', '0xdef...')
   .addTag('swap');
 ```
@@ -154,34 +153,109 @@ export function MyPlugin(): MiradorPlugin<MyMethods> {
 }
 ```
 
-### 2. Use Your Plugin
+### 2. Custom Namespaces
+
+Plugins can nest their methods under namespaces by using nested objects in the `TMethods` type. The type system and runtime both handle arbitrary nesting automatically.
+
+```typescript
+// Define methods under a namespace
+export interface AnalyticsMethods {
+  analytics: {
+    track(event: string, data?: Record<string, unknown>): void;
+    identify(userId: string): void;
+    getSessionId(): string;
+  };
+}
+
+export function AnalyticsPlugin(): MiradorPlugin<AnalyticsMethods> {
+  return {
+    name: 'analytics',
+    setup(ctx: TraceContext): PluginSetupResult<AnalyticsMethods> {
+      const sessionId = crypto.randomUUID();
+
+      return {
+        methods: {
+          analytics: {
+            track(event, data) {
+              ctx.addEvent(`analytics:${event}`, data);
+              ctx.scheduleFlush();
+            },
+            identify(userId) {
+              ctx.addAttribute('analytics.userId', userId);
+            },
+            getSessionId() {
+              return sessionId;
+            },
+          },
+        },
+        noopMethods: {
+          analytics: { getSessionId: () => '' },
+        },
+      };
+    },
+  };
+}
+```
+
+Usage:
 
 ```typescript
 const client = new Client('key', {
-  plugins: [Web3Plugin(), SafePlugin(), MyPlugin()],
+  plugins: [Web3Plugin(), AnalyticsPlugin()],
+});
+
+const trace = client.trace({ name: 'swap' });
+
+// Namespaced access
+trace.analytics.track('page_view', { page: '/swap' });
+trace.analytics.identify('user123');
+trace.analytics.getSessionId(); // Returns the session ID
+
+// Chaining across namespaces — void methods return the root Trace
+trace.analytics.track('click')
+     .web3.evm.addTxHint('0x...', 'ethereum')
+     .analytics.identify('user123')
+     .addAttribute('key', 'value');
+```
+
+Multiple plugins can share a top-level namespace. TypeScript's intersection merges them automatically:
+
+```typescript
+// Plugin A: { myNs: { foo(): void } }
+// Plugin B: { myNs: { bar(): void } }
+// Result:   trace.myNs.foo() and trace.myNs.bar() both work
+```
+
+You can also nest arbitrarily deep: `{ a: { b: { c: { doThing(): void } } } }` works.
+
+### 3. Use Your Plugin
+
+```typescript
+const client = new Client('key', {
+  plugins: [Web3Plugin(), MyPlugin()],
 });
 
 const trace = client.trace({ name: 'test' });
 trace.trackAction('click', { button: 'submit' }); // Your method
-trace.addTxHint('0x...', 'ethereum');              // Web3Plugin still works
+trace.web3.evm.addTxHint('0x...', 'ethereum');     // Web3Plugin still works
 trace.getActionCount();                            // Returns 1
 ```
 
-### 3. Plugin Lifecycle
+### 4. Plugin Lifecycle
 
 ```
 client.trace({ name: 'test' })
   │
   ├── plugin.setup(ctx) called for each plugin
   │     └── Returns { methods, onFlush, onClose, hasPendingData }
-  │     └── methods are merged onto the Trace instance
+  │     └── methods are recursively merged onto the Trace instance (supports nested namespaces)
   │
   ├── trace.trackAction(...)        ← Your plugin method
   │     └── Buffers data, calls ctx.scheduleFlush()
   │
   ├── [microtask] flush triggered
-  │     ├── SDK builds TraceData (events, attributes, tags)
-  │     ├── SDK creates FlushBuilder wrapping TraceData
+  │     ├── SDK builds FlushTraceData (events, attributes, tags)
+  │     ├── SDK creates FlushBuilder wrapping FlushTraceData
   │     └── plugin.onFlush(builder) called for each plugin
   │           └── Plugin dumps buffered data via builder
   │
@@ -189,13 +263,13 @@ client.trace({ name: 'test' })
         └── plugin.onClose() called for each plugin
 ```
 
-### 4. TraceContext API
+### 5. TraceContext API
 
 The `ctx` object provides these methods for plugins:
 
 | Method | Description |
 |--------|-------------|
-| `ctx.addEvent(name, details?, options?)` | Record an event |
+| `ctx.addEvent(name, details?, options?)` | Record an event (options: `captureStackTrace`, `severity`) |
 | `ctx.addAttribute(key, value)` | Set a trace attribute |
 | `ctx.addAttributes(attrs)` | Set multiple attributes |
 | `ctx.addTag(tag)` | Add a tag |
@@ -205,14 +279,14 @@ The `ctx` object provides these methods for plugins:
 | `ctx.scheduleFlush()` | Trigger a batched flush |
 | `ctx.logger` | Logger instance (`debug`, `warn`, `error`) |
 
-### 5. FlushBuilder API
+### 6. FlushBuilder API
 
 The `builder` object in `onFlush` provides:
 
 | Method | Description |
 |--------|-------------|
 | `builder.addHint(type, data)` | Add a typed hint (see hint types below) |
-| `builder.addEvent(event)` | Add an event to the flush payload |
+| `builder.addEvent(event)` | Add an event (`{ name, details?, timestamp, severity? }`) |
 | `builder.addAttribute(key, value)` | Add an attribute |
 | `builder.addTag(tag)` | Add a tag |
 
@@ -243,7 +317,7 @@ export interface HintDataMap {
   [HintType.MY_HINT]: {
     field1: string;
     field2: number;
-    chain: ChainName;
+    chain: Chain;
     timestamp: Date;
   };
 }

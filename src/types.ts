@@ -47,16 +47,33 @@ export interface Logger {
 }
 
 /**
- * Supported chain names (maps to Chain enum in proto)
+ * Supported EVM chains, keyed by chain ID.
+ */
+export enum Chain {
+  Ethereum = 1,
+  Polygon = 137,
+  Arbitrum = 42161,
+  Base = 8453,
+  Optimism = 10,
+  BSC = 56,
+}
+
+/**
+ * Chain name strings (legacy / convenience).
  */
 export type ChainName = 'ethereum' | 'polygon' | 'arbitrum' | 'base' | 'optimism' | 'bsc';
+
+/**
+ * Accepted chain input — callers can pass either a Chain enum value or a chain name string.
+ */
+export type ChainInput = Chain | ChainName;
 
 /**
  * Transaction hash hint for blockchain correlation
  */
 export interface TxHashHint {
   txHash: string;
-  chain: ChainName;
+  chain: Chain;
   details?: string;
   timestamp: Date;
 }
@@ -66,7 +83,7 @@ export interface TxHashHint {
  */
 export interface SafeMsgHintData {
   messageHash: string;
-  chain: ChainName;
+  chain: Chain;
   details?: string;
   timestamp: Date;
 }
@@ -76,9 +93,18 @@ export interface SafeMsgHintData {
  */
 export interface SafeTxHintData {
   safeTxHash: string;
-  chain: ChainName;
+  chain: Chain;
   details?: string;
   timestamp: Date;
+}
+
+/**
+ * Event severity levels.
+ */
+export enum Severity {
+  Info = 1,
+  Warn = 2,
+  Error = 3,
 }
 
 /**
@@ -87,4 +113,6 @@ export interface SafeTxHintData {
 export interface AddEventOptions {
   /** Capture stack trace at the point where addEvent is called */
   captureStackTrace?: boolean;
+  /** Event severity (defaults to Info) */
+  severity?: Severity;
 }
