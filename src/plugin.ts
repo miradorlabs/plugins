@@ -2,7 +2,7 @@
  * Plugin system types for the Mirador SDK.
  * Plugins extend Trace with additional methods via flat merge.
  */
-import type { Logger, AddEventOptions } from './types';
+import type { Logger, AddEventOptions, Severity } from './types';
 import type { HintDataMap, HintTypeName } from './hints';
 
 /**
@@ -34,6 +34,7 @@ export interface FlushBuilder {
     name: string;
     details?: string;
     timestamp: Date;
+    severity?: Severity;
   }): void;
   addAttribute(key: string, value: string): void;
   addTag(tag: string): void;

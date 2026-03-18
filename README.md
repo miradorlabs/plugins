@@ -269,7 +269,7 @@ The `ctx` object provides these methods for plugins:
 
 | Method | Description |
 |--------|-------------|
-| `ctx.addEvent(name, details?, options?)` | Record an event |
+| `ctx.addEvent(name, details?, options?)` | Record an event (options: `captureStackTrace`, `severity`) |
 | `ctx.addAttribute(key, value)` | Set a trace attribute |
 | `ctx.addAttributes(attrs)` | Set multiple attributes |
 | `ctx.addTag(tag)` | Add a tag |
@@ -286,7 +286,7 @@ The `builder` object in `onFlush` provides:
 | Method | Description |
 |--------|-------------|
 | `builder.addHint(type, data)` | Add a typed hint (see hint types below) |
-| `builder.addEvent(event)` | Add an event to the flush payload |
+| `builder.addEvent(event)` | Add an event (`{ name, details?, timestamp, severity? }`) |
 | `builder.addAttribute(key, value)` | Add an attribute |
 | `builder.addTag(tag)` | Add a tag |
 

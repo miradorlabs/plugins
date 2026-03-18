@@ -99,9 +99,20 @@ export interface SafeTxHintData {
 }
 
 /**
+ * Event severity levels.
+ */
+export enum Severity {
+  Info = 1,
+  Warn = 2,
+  Error = 3,
+}
+
+/**
  * Options for adding an event
  */
 export interface AddEventOptions {
   /** Capture stack trace at the point where addEvent is called */
   captureStackTrace?: boolean;
+  /** Event severity (defaults to Info) */
+  severity?: Severity;
 }
