@@ -1,47 +1,48 @@
-import { chainIdToName } from '../src/chains';
+import { toChain } from '../src/chains';
+import { Chain } from '../src/types';
 
-describe('chainIdToName', () => {
+describe('toChain', () => {
   it('should map ethereum chain ID', () => {
-    expect(chainIdToName(1)).toBe('ethereum');
+    expect(toChain(1)).toBe(Chain.Ethereum);
   });
 
   it('should map polygon chain ID', () => {
-    expect(chainIdToName(137)).toBe('polygon');
+    expect(toChain(137)).toBe(Chain.Polygon);
   });
 
   it('should map arbitrum chain ID', () => {
-    expect(chainIdToName(42161)).toBe('arbitrum');
+    expect(toChain(42161)).toBe(Chain.Arbitrum);
   });
 
   it('should map base chain ID', () => {
-    expect(chainIdToName(8453)).toBe('base');
+    expect(toChain(8453)).toBe(Chain.Base);
   });
 
   it('should map optimism chain ID', () => {
-    expect(chainIdToName(10)).toBe('optimism');
+    expect(toChain(10)).toBe(Chain.Optimism);
   });
 
   it('should map bsc chain ID', () => {
-    expect(chainIdToName(56)).toBe('bsc');
+    expect(toChain(56)).toBe(Chain.BSC);
   });
 
   it('should return undefined for unknown chain IDs', () => {
-    expect(chainIdToName(999999)).toBeUndefined();
-    expect(chainIdToName(0)).toBeUndefined();
+    expect(toChain(999999)).toBeUndefined();
+    expect(toChain(0)).toBeUndefined();
   });
 
   it('should handle bigint input', () => {
-    expect(chainIdToName(BigInt(1))).toBe('ethereum');
-    expect(chainIdToName(BigInt(137))).toBe('polygon');
+    expect(toChain(BigInt(1))).toBe(Chain.Ethereum);
+    expect(toChain(BigInt(137))).toBe(Chain.Polygon);
   });
 
   it('should handle string input', () => {
-    expect(chainIdToName('1')).toBe('ethereum');
-    expect(chainIdToName('137')).toBe('polygon');
+    expect(toChain('1')).toBe(Chain.Ethereum);
+    expect(toChain('137')).toBe(Chain.Polygon);
   });
 
   it('should handle hex string input', () => {
-    expect(chainIdToName('0x1')).toBe('ethereum');
-    expect(chainIdToName('0x89')).toBe('polygon');
+    expect(toChain('0x1')).toBe(Chain.Ethereum);
+    expect(toChain('0x89')).toBe(Chain.Polygon);
   });
 });

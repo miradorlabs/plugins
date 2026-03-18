@@ -21,12 +21,14 @@ export { HintType } from './hints';
 export type { HintDataMap, HintTypeName } from './hints';
 
 // Chain utilities
-export { chainIdToName } from './chains';
+export { toChain, resolveChainInput } from './chains';
 
 // Shared types
-export type {
-  ChainName,
-  EIP1193Provider,
+export {
+  Chain,
+  type ChainName,
+  type ChainInput,
+  type EIP1193Provider,
   TxHintOptions,
   TransactionLike,
   TransactionRequest,

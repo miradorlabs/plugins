@@ -1,5 +1,6 @@
 import { Web3Plugin } from '../src/web3-plugin';
 import { HintType } from '../src/hints';
+import { Chain } from '../src/types';
 import type { TraceContext, FlushBuilder } from '../src/plugin';
 import type { EIP1193Provider, TxHashHint, SafeMsgHintData, SafeTxHintData } from '../src/types';
 
@@ -105,13 +106,13 @@ describe('Web3Plugin', () => {
       const { methods, onFlush } = Web3Plugin().setup(ctx);
       const builder = createMockBuilder();
 
-      methods.web3.evm.addTxHint('0xabc', 'ethereum');
+      methods.web3.evm.addTxHint('0xabc', Chain.Ethereum);
       expect(ctx.scheduleFlush).toHaveBeenCalled();
 
       onFlush!(builder);
       expect(builder.addHint).toHaveBeenCalledWith(
         HintType.TX_HASH,
-        expect.objectContaining({ txHash: '0xabc', chain: 'ethereum' }),
+        expect.objectContaining({ txHash: '0xabc', chain: Chain.Ethereum }),
       );
     });
 
@@ -120,7 +121,7 @@ describe('Web3Plugin', () => {
       const { methods, onFlush } = Web3Plugin().setup(ctx);
       const builder = createMockBuilder();
 
-      methods.web3.evm.addTxHint('0xabc', 'polygon', 'swap tx');
+      methods.web3.evm.addTxHint('0xabc', Chain.Polygon, 'swap tx');
       onFlush!(builder);
 
       const hint = builder.hints[0].data as TxHashHint;
@@ -131,7 +132,7 @@ describe('Web3Plugin', () => {
       const ctx = createMockCtx();
       const { methods } = Web3Plugin().setup(ctx);
 
-      methods.web3.evm.addTxHint('0xabc', 'ethereum', { input: '0xdeadbeef' });
+      methods.web3.evm.addTxHint('0xabc', Chain.Ethereum, { input: '0xdeadbeef' });
       expect(ctx.addEvent).toHaveBeenCalledWith('Tx input data', '0xdeadbeef');
     });
 
@@ -140,7 +141,7 @@ describe('Web3Plugin', () => {
       const { methods, onFlush } = Web3Plugin().setup(ctx);
       const builder = createMockBuilder();
 
-      methods.web3.evm.addTxHint('0xabc', 'ethereum', { input: '0xdeadbeef', details: 'swap' });
+      methods.web3.evm.addTxHint('0xabc', Chain.Ethereum, { input: '0xdeadbeef', details: 'swap' });
       onFlush!(builder);
 
       expect(ctx.addEvent).toHaveBeenCalledWith('Tx input data', '0xdeadbeef');
@@ -152,7 +153,7 @@ describe('Web3Plugin', () => {
       const ctx = createMockCtx({ isClosed: jest.fn().mockReturnValue(true) });
       const { methods, hasPendingData } = Web3Plugin().setup(ctx);
 
-      methods.web3.evm.addTxHint('0xabc', 'ethereum');
+      methods.web3.evm.addTxHint('0xabc', Chain.Ethereum);
       expect(ctx.logger.warn).toHaveBeenCalledWith('[Web3Plugin] Trace is closed, ignoring addTxHint');
       expect(hasPendingData!()).toBe(false);
     });
@@ -195,7 +196,7 @@ describe('Web3Plugin', () => {
 
       const hint = builder.hints[0].data as TxHashHint;
       expect(hint.txHash).toBe('0xtxhash');
-      expect(hint.chain).toBe('ethereum');
+      expect(hint.chain).toBe(Chain.Ethereum);
     });
 
     it('should extract input data from tx.data', () => {
@@ -219,11 +220,11 @@ describe('Web3Plugin', () => {
       const { methods, onFlush } = Web3Plugin().setup(ctx);
       const builder = createMockBuilder();
 
-      methods.web3.evm.addTx({ hash: '0xtxhash', chainId: 137 }, 'arbitrum');
+      methods.web3.evm.addTx({ hash: '0xtxhash', chainId: 137 }, Chain.Arbitrum);
       onFlush!(builder);
 
       const hint = builder.hints[0].data as TxHashHint;
-      expect(hint.chain).toBe('arbitrum');
+      expect(hint.chain).toBe(Chain.Arbitrum);
     });
 
     it('should be ignored when trace is closed', () => {
@@ -249,7 +250,7 @@ describe('Web3Plugin', () => {
       // Allow async chain detection to complete
       await jest.advanceTimersByTimeAsync(0);
 
-      expect(methods.web3.evm.getProviderChain()).toBe('ethereum');
+      expect(methods.web3.evm.getProviderChain()).toBe(Chain.Ethereum);
     });
 
     it('should detect chain when provider is set via setProvider', async () => {
@@ -259,19 +260,19 @@ describe('Web3Plugin', () => {
       methods.web3.evm.setProvider(provider);
       await jest.advanceTimersByTimeAsync(0);
 
-      expect(methods.web3.evm.getProviderChain()).toBe('polygon');
+      expect(methods.web3.evm.getProviderChain()).toBe(Chain.Polygon);
     });
   });
 
   describe('web3.evm.resolveChain', () => {
     it('should return explicit chain if given', () => {
       const { methods } = Web3Plugin().setup(createMockCtx());
-      expect(methods.web3.evm.resolveChain('polygon')).toBe('polygon');
+      expect(methods.web3.evm.resolveChain(Chain.Polygon)).toBe(Chain.Polygon);
     });
 
     it('should fall back to chainId', () => {
       const { methods } = Web3Plugin().setup(createMockCtx());
-      expect(methods.web3.evm.resolveChain(undefined, 137)).toBe('polygon');
+      expect(methods.web3.evm.resolveChain(undefined, 137)).toBe(Chain.Polygon);
     });
 
     it('should fall back to provider chain', async () => {
@@ -279,7 +280,7 @@ describe('Web3Plugin', () => {
       const { methods } = Web3Plugin({ provider }).setup(createMockCtx());
       await jest.advanceTimersByTimeAsync(0);
 
-      expect(methods.web3.evm.resolveChain()).toBe('ethereum');
+      expect(methods.web3.evm.resolveChain()).toBe(Chain.Ethereum);
     });
 
     it('should throw if no chain can be determined', () => {
@@ -384,13 +385,13 @@ describe('Web3Plugin', () => {
       const { methods, onFlush } = Web3Plugin().setup(ctx);
       const builder = createMockBuilder();
 
-      methods.web3.safe.addMsgHint('0xmsghash', 'ethereum');
+      methods.web3.safe.addMsgHint('0xmsghash', Chain.Ethereum);
       expect(ctx.scheduleFlush).toHaveBeenCalled();
 
       onFlush!(builder);
       expect(builder.addHint).toHaveBeenCalledWith(
         HintType.SAFE_MSG,
-        expect.objectContaining({ messageHash: '0xmsghash', chain: 'ethereum' }),
+        expect.objectContaining({ messageHash: '0xmsghash', chain: Chain.Ethereum }),
       );
     });
 
@@ -399,7 +400,7 @@ describe('Web3Plugin', () => {
       const { methods, onFlush } = Web3Plugin().setup(ctx);
       const builder = createMockBuilder();
 
-      methods.web3.safe.addMsgHint('0xmsghash', 'polygon', 'approval msg');
+      methods.web3.safe.addMsgHint('0xmsghash', Chain.Polygon, 'approval msg');
       onFlush!(builder);
 
       const hint = builder.hints[0].data as SafeMsgHintData;
@@ -410,25 +411,25 @@ describe('Web3Plugin', () => {
       const ctx = createMockCtx({ isClosed: jest.fn().mockReturnValue(true) });
       const { methods, hasPendingData } = Web3Plugin().setup(ctx);
 
-      methods.web3.safe.addMsgHint('0xmsghash', 'ethereum');
+      methods.web3.safe.addMsgHint('0xmsghash', Chain.Ethereum);
       expect(ctx.logger.warn).toHaveBeenCalledWith('[Web3Plugin] Trace is closed, ignoring addMsgHint');
       expect(hasPendingData!()).toBe(false);
     });
   });
 
-  describe('web3.safe.addSafeTxHint', () => {
+  describe('web3.safe.addTxHint', () => {
     it('should add a safe tx hint', () => {
       const ctx = createMockCtx();
       const { methods, onFlush } = Web3Plugin().setup(ctx);
       const builder = createMockBuilder();
 
-      methods.web3.safe.addTxHint('0xsafetxhash', 'ethereum');
+      methods.web3.safe.addTxHint('0xsafetxhash', Chain.Ethereum);
       expect(ctx.scheduleFlush).toHaveBeenCalled();
 
       onFlush!(builder);
       expect(builder.addHint).toHaveBeenCalledWith(
         HintType.SAFE_TX,
-        expect.objectContaining({ safeTxHash: '0xsafetxhash', chain: 'ethereum' }),
+        expect.objectContaining({ safeTxHash: '0xsafetxhash', chain: Chain.Ethereum }),
       );
     });
 
@@ -437,7 +438,7 @@ describe('Web3Plugin', () => {
       const { methods, onFlush } = Web3Plugin().setup(ctx);
       const builder = createMockBuilder();
 
-      methods.web3.safe.addTxHint('0xsafetxhash', 'base', 'execution tx');
+      methods.web3.safe.addTxHint('0xsafetxhash', Chain.Base, 'execution tx');
       onFlush!(builder);
 
       const hint = builder.hints[0].data as SafeTxHintData;
@@ -448,7 +449,7 @@ describe('Web3Plugin', () => {
       const ctx = createMockCtx({ isClosed: jest.fn().mockReturnValue(true) });
       const { methods, hasPendingData } = Web3Plugin().setup(ctx);
 
-      methods.web3.safe.addTxHint('0xsafetxhash', 'ethereum');
+      methods.web3.safe.addTxHint('0xsafetxhash', Chain.Ethereum);
       expect(ctx.logger.warn).toHaveBeenCalledWith('[Web3Plugin] Trace is closed, ignoring addTxHint');
       expect(hasPendingData!()).toBe(false);
     });
@@ -460,10 +461,10 @@ describe('Web3Plugin', () => {
       const { methods, onFlush } = Web3Plugin().setup(ctx);
       const builder = createMockBuilder();
 
-      methods.web3.evm.addTxHint('0xtx1', 'ethereum');
-      methods.web3.evm.addTxHint('0xtx2', 'polygon');
-      methods.web3.safe.addMsgHint('0xmsg1', 'arbitrum');
-      methods.web3.safe.addTxHint('0xsafetx1', 'base');
+      methods.web3.evm.addTxHint('0xtx1', Chain.Ethereum);
+      methods.web3.evm.addTxHint('0xtx2', Chain.Polygon);
+      methods.web3.safe.addMsgHint('0xmsg1', Chain.Arbitrum);
+      methods.web3.safe.addTxHint('0xsafetx1', Chain.Base);
 
       onFlush!(builder);
 
@@ -478,8 +479,8 @@ describe('Web3Plugin', () => {
       const ctx = createMockCtx();
       const { methods, onFlush, hasPendingData } = Web3Plugin().setup(ctx);
 
-      methods.web3.evm.addTxHint('0xtx', 'ethereum');
-      methods.web3.safe.addMsgHint('0xmsg', 'ethereum');
+      methods.web3.evm.addTxHint('0xtx', Chain.Ethereum);
+      methods.web3.safe.addMsgHint('0xmsg', Chain.Ethereum);
       expect(hasPendingData!()).toBe(true);
 
       onFlush!(createMockBuilder());
@@ -500,19 +501,19 @@ describe('Web3Plugin', () => {
 
     it('should return true when tx hints pending', () => {
       const { methods, hasPendingData } = Web3Plugin().setup(createMockCtx());
-      methods.web3.evm.addTxHint('0xtx', 'ethereum');
+      methods.web3.evm.addTxHint('0xtx', Chain.Ethereum);
       expect(hasPendingData!()).toBe(true);
     });
 
     it('should return true when safe msg hints pending', () => {
       const { methods, hasPendingData } = Web3Plugin().setup(createMockCtx());
-      methods.web3.safe.addMsgHint('0xmsg', 'ethereum');
+      methods.web3.safe.addMsgHint('0xmsg', Chain.Ethereum);
       expect(hasPendingData!()).toBe(true);
     });
 
     it('should return true when safe tx hints pending', () => {
       const { methods, hasPendingData } = Web3Plugin().setup(createMockCtx());
-      methods.web3.safe.addTxHint('0xsafetx', 'ethereum');
+      methods.web3.safe.addTxHint('0xsafetx', Chain.Ethereum);
       expect(hasPendingData!()).toBe(true);
     });
   });
@@ -522,9 +523,9 @@ describe('Web3Plugin', () => {
       const ctx = createMockCtx();
       const { methods, onClose, hasPendingData } = Web3Plugin().setup(ctx);
 
-      methods.web3.evm.addTxHint('0xtx', 'ethereum');
-      methods.web3.safe.addMsgHint('0xmsg', 'ethereum');
-      methods.web3.safe.addTxHint('0xsafetx', 'ethereum');
+      methods.web3.evm.addTxHint('0xtx', Chain.Ethereum);
+      methods.web3.safe.addMsgHint('0xmsg', Chain.Ethereum);
+      methods.web3.safe.addTxHint('0xsafetx', Chain.Ethereum);
       expect(hasPendingData!()).toBe(true);
 
       onClose!();
@@ -536,7 +537,7 @@ describe('Web3Plugin', () => {
       const { methods, onClose } = Web3Plugin({ provider }).setup(createMockCtx());
       await jest.advanceTimersByTimeAsync(0);
 
-      expect(methods.web3.evm.getProviderChain()).toBe('ethereum');
+      expect(methods.web3.evm.getProviderChain()).toBe(Chain.Ethereum);
 
       onClose!();
       expect(methods.web3.evm.getProviderChain()).toBeNull();
