@@ -254,8 +254,8 @@ client.trace({ name: 'test' })
   │     └── Buffers data, calls ctx.scheduleFlush()
   │
   ├── [microtask] flush triggered
-  │     ├── SDK builds TraceData (events, attributes, tags)
-  │     ├── SDK creates FlushBuilder wrapping TraceData
+  │     ├── SDK builds FlushTraceData (events, attributes, tags)
+  │     ├── SDK creates FlushBuilder wrapping FlushTraceData
   │     └── plugin.onFlush(builder) called for each plugin
   │           └── Plugin dumps buffered data via builder
   │
