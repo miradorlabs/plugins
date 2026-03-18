@@ -171,13 +171,14 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
           data: tx.data ? `${tx.data.slice(0, 10)}...` : undefined,
         });
 
+        const chain = resolveChain(undefined, tx.chainId);
+
         try {
           const txHash = await p.request({
             method: 'eth_sendTransaction',
             params: [serializeTxParams(tx)],
           }) as string;
 
-          const chain = resolveChain(undefined, tx.chainId);
           if (tx.data) { addInputData(tx.data); }
           addTxHint(txHash, chain);
           ctx.addEvent('tx:sent', { txHash });

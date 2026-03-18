@@ -9,8 +9,8 @@ plugins/                    # This package (proto-free)
 ├── src/
 │   ├── plugin.ts           # Core interfaces: MiradorPlugin, TraceContext, FlushBuilder
 │   ├── hints.ts            # HintType constants + HintDataMap type registry
-│   ├── types.ts            # Shared types: ChainName, TxHashHint, Logger, etc.
-│   ├── chains.ts           # chainIdToName() utility
+│   ├── types.ts            # Shared types: Chain, ChainInput, TxHashHint, Logger, etc.
+│   ├── chains.ts           # toChain(), resolveChainInput() utilities
 │   ├── web3-plugin.ts      # Web3Plugin — tx hints, sendTransaction, provider mgmt, Safe hints
 │   └── index.ts            # Public exports
 
@@ -61,7 +61,7 @@ const txHash2 = await trace.web3.evm.sendTransaction(txParams, otherProvider);
 
 // Safe methods (under web3.safe namespace):
 trace.web3.safe.addMsgHint('0xmsg...', 'ethereum', 'Approval message');
-trace.web3.safe.addSafeTxHint('0xsafetx...', 'ethereum', 'Execution tx');
+trace.web3.safe.addTxHint('0xsafetx...', 'ethereum', 'Execution tx');
 ```
 
 ### Method Chaining
@@ -190,7 +190,7 @@ export function AnalyticsPlugin(): MiradorPlugin<AnalyticsMethods> {
         },
         noopMethods: {
           analytics: { getSessionId: () => '' },
-        } as unknown as Partial<AnalyticsMethods>,
+        },
       };
     },
   };
@@ -317,7 +317,7 @@ export interface HintDataMap {
   [HintType.MY_HINT]: {
     field1: string;
     field2: number;
-    chain: ChainName;
+    chain: Chain;
     timestamp: Date;
   };
 }
