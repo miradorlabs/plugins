@@ -36,7 +36,7 @@ export interface EvmMethods {
 /** The leaf methods that Web3Plugin exposes under web3.safe */
 export interface SafeNamespaceMethods {
   addMsgHint(msgHash: string, chain: ChainName, details?: string): void;
-  addSafeTxHint(safeTxHash: string, chain: ChainName, details?: string): void;
+  addTxHint(safeTxHash: string, chain: ChainName, details?: string): void;
 }
 
 /** The namespaced methods that Web3Plugin adds to Trace */
@@ -191,7 +191,7 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
 
       // --- Safe methods ---
 
-      function addMsgHint(msgHash: string, chain: ChainName, details?: string): void {
+      function safeAddMsgHint(msgHash: string, chain: ChainName, details?: string): void {
         if (ctx.isClosed()) {
           ctx.logger.warn('[Web3Plugin] Trace is closed, ignoring addMsgHint');
           return;
@@ -200,9 +200,9 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
         ctx.scheduleFlush();
       }
 
-      function addSafeTxHint(safeTxHash: string, chain: ChainName, details?: string): void {
+      function safeAddTxHint(safeTxHash: string, chain: ChainName, details?: string): void {
         if (ctx.isClosed()) {
-          ctx.logger.warn('[Web3Plugin] Trace is closed, ignoring addSafeTxHint');
+          ctx.logger.warn('[Web3Plugin] Trace is closed, ignoring addTxHint');
           return;
         }
         pendingSafeTxHints.push({ safeTxHash, chain, details, timestamp: new Date() });
@@ -253,8 +253,8 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
               sendTransaction,
             },
             safe: {
-              addMsgHint,
-              addSafeTxHint,
+              addMsgHint: safeAddMsgHint,
+              addTxHint: safeAddTxHint,
             },
           },
         },
@@ -265,7 +265,7 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
               sendTransaction: () => Promise.resolve(''),
             },
           },
-        } as unknown as Partial<Web3Methods>,
+        },
         onFlush,
         onClose,
         hasPendingData,

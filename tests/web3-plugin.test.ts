@@ -46,6 +46,14 @@ function createMockProvider(chainId = '0x1'): jest.Mocked<EIP1193Provider> {
 }
 
 describe('Web3Plugin', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   describe('setup', () => {
     it('should return correct plugin name', () => {
       const plugin = Web3Plugin();
@@ -68,7 +76,7 @@ describe('Web3Plugin', () => {
       expect(typeof result.methods.web3.evm.resolveChain).toBe('function');
       expect(typeof result.methods.web3.evm.sendTransaction).toBe('function');
       expect(typeof result.methods.web3.safe.addMsgHint).toBe('function');
-      expect(typeof result.methods.web3.safe.addSafeTxHint).toBe('function');
+      expect(typeof result.methods.web3.safe.addTxHint).toBe('function');
     });
 
     it('should return lifecycle hooks', () => {
@@ -239,7 +247,7 @@ describe('Web3Plugin', () => {
       const { methods } = Web3Plugin({ provider }).setup(createMockCtx());
 
       // Allow async chain detection to complete
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await jest.advanceTimersByTimeAsync(0);
 
       expect(methods.web3.evm.getProviderChain()).toBe('ethereum');
     });
@@ -249,7 +257,7 @@ describe('Web3Plugin', () => {
       const { methods } = Web3Plugin().setup(createMockCtx());
 
       methods.web3.evm.setProvider(provider);
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await jest.advanceTimersByTimeAsync(0);
 
       expect(methods.web3.evm.getProviderChain()).toBe('polygon');
     });
@@ -269,7 +277,7 @@ describe('Web3Plugin', () => {
     it('should fall back to provider chain', async () => {
       const provider = createMockProvider('0x1');
       const { methods } = Web3Plugin({ provider }).setup(createMockCtx());
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await jest.advanceTimersByTimeAsync(0);
 
       expect(methods.web3.evm.resolveChain()).toBe('ethereum');
     });
@@ -286,7 +294,7 @@ describe('Web3Plugin', () => {
     it('should send tx via provider and return hash', async () => {
       const provider = createMockProvider('0x1');
       const { methods } = Web3Plugin({ provider }).setup(createMockCtx());
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await jest.advanceTimersByTimeAsync(0);
 
       const hash = await methods.web3.evm.sendTransaction({
         from: '0xsender',
@@ -305,7 +313,7 @@ describe('Web3Plugin', () => {
       const ctx = createMockCtx();
       const provider = createMockProvider('0x1');
       const { methods, onFlush } = Web3Plugin({ provider }).setup(ctx);
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await jest.advanceTimersByTimeAsync(0);
 
       await methods.web3.evm.sendTransaction({
         from: '0xsender',
@@ -333,7 +341,7 @@ describe('Web3Plugin', () => {
         throw txError;
       });
       const { methods } = Web3Plugin({ provider }).setup(ctx);
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await jest.advanceTimersByTimeAsync(0);
 
       await expect(
         methods.web3.evm.sendTransaction({ from: '0xsender', chainId: 1 }),
@@ -414,7 +422,7 @@ describe('Web3Plugin', () => {
       const { methods, onFlush } = Web3Plugin().setup(ctx);
       const builder = createMockBuilder();
 
-      methods.web3.safe.addSafeTxHint('0xsafetxhash', 'ethereum');
+      methods.web3.safe.addTxHint('0xsafetxhash', 'ethereum');
       expect(ctx.scheduleFlush).toHaveBeenCalled();
 
       onFlush!(builder);
@@ -429,7 +437,7 @@ describe('Web3Plugin', () => {
       const { methods, onFlush } = Web3Plugin().setup(ctx);
       const builder = createMockBuilder();
 
-      methods.web3.safe.addSafeTxHint('0xsafetxhash', 'base', 'execution tx');
+      methods.web3.safe.addTxHint('0xsafetxhash', 'base', 'execution tx');
       onFlush!(builder);
 
       const hint = builder.hints[0].data as SafeTxHintData;
@@ -440,8 +448,8 @@ describe('Web3Plugin', () => {
       const ctx = createMockCtx({ isClosed: jest.fn().mockReturnValue(true) });
       const { methods, hasPendingData } = Web3Plugin().setup(ctx);
 
-      methods.web3.safe.addSafeTxHint('0xsafetxhash', 'ethereum');
-      expect(ctx.logger.warn).toHaveBeenCalledWith('[Web3Plugin] Trace is closed, ignoring addSafeTxHint');
+      methods.web3.safe.addTxHint('0xsafetxhash', 'ethereum');
+      expect(ctx.logger.warn).toHaveBeenCalledWith('[Web3Plugin] Trace is closed, ignoring addTxHint');
       expect(hasPendingData!()).toBe(false);
     });
   });
@@ -455,7 +463,7 @@ describe('Web3Plugin', () => {
       methods.web3.evm.addTxHint('0xtx1', 'ethereum');
       methods.web3.evm.addTxHint('0xtx2', 'polygon');
       methods.web3.safe.addMsgHint('0xmsg1', 'arbitrum');
-      methods.web3.safe.addSafeTxHint('0xsafetx1', 'base');
+      methods.web3.safe.addTxHint('0xsafetx1', 'base');
 
       onFlush!(builder);
 
@@ -504,7 +512,7 @@ describe('Web3Plugin', () => {
 
     it('should return true when safe tx hints pending', () => {
       const { methods, hasPendingData } = Web3Plugin().setup(createMockCtx());
-      methods.web3.safe.addSafeTxHint('0xsafetx', 'ethereum');
+      methods.web3.safe.addTxHint('0xsafetx', 'ethereum');
       expect(hasPendingData!()).toBe(true);
     });
   });
@@ -516,7 +524,7 @@ describe('Web3Plugin', () => {
 
       methods.web3.evm.addTxHint('0xtx', 'ethereum');
       methods.web3.safe.addMsgHint('0xmsg', 'ethereum');
-      methods.web3.safe.addSafeTxHint('0xsafetx', 'ethereum');
+      methods.web3.safe.addTxHint('0xsafetx', 'ethereum');
       expect(hasPendingData!()).toBe(true);
 
       onClose!();
@@ -526,7 +534,7 @@ describe('Web3Plugin', () => {
     it('should nullify provider (getProviderChain returns null after close)', async () => {
       const provider = createMockProvider('0x1');
       const { methods, onClose } = Web3Plugin({ provider }).setup(createMockCtx());
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await jest.advanceTimersByTimeAsync(0);
 
       expect(methods.web3.evm.getProviderChain()).toBe('ethereum');
 

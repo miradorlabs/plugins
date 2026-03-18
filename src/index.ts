@@ -13,6 +13,7 @@ export type {
   FlushBuilder,
   MergedPluginMethods,
   PluginMethods,
+  DeepPartial,
 } from './plugin';
 
 // Hint types

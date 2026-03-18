@@ -39,6 +39,15 @@ export interface FlushBuilder {
   addTag(tag: string): void;
 }
 
+/** Recursive partial — allows partially specifying nested namespace objects. */
+export type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends (...args: infer A) => infer R
+    ? (...args: A) => R
+    : T[K] extends object
+      ? DeepPartial<T[K]>
+      : T[K];
+};
+
 /**
  * The result of plugin setup — methods to merge onto Trace,
  * plus optional lifecycle hooks.
@@ -48,7 +57,7 @@ export interface PluginSetupResult<TMethods> {
   methods: TMethods;
   /** No-op versions of methods for NoopTrace (sampled-out traces).
    *  If not provided, methods default to returning `this` for chaining. */
-  noopMethods?: Partial<TMethods>;
+  noopMethods?: DeepPartial<TMethods>;
   /** Called during flush to contribute data to the TraceData payload */
   onFlush?(builder: FlushBuilder): void;
   /** Called when the trace is being closed */

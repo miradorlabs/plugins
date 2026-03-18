@@ -5,7 +5,6 @@ const config = {
   roots: ['<rootDir>/tests', '<rootDir>/src'],
   testMatch: ['**/*.test.ts'],
   testTimeout: 10000,
-  forceExit: true,
   verbose: true,
   collectCoverageFrom: [
     'src/**/*.ts',
