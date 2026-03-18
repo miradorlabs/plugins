@@ -323,8 +323,8 @@ describe('Web3Plugin', () => {
       });
 
       // Should have tx:send and tx:sent events
-      expect(ctx.addEvent).toHaveBeenCalledWith('tx:send', expect.any(Object));
-      expect(ctx.addEvent).toHaveBeenCalledWith('tx:sent', { txHash: '0xtxhash123' });
+      expect(ctx.addEvent).toHaveBeenCalledWith('tx:send', expect.any(Object), expect.objectContaining({ severity: 1 }));
+      expect(ctx.addEvent).toHaveBeenCalledWith('tx:sent', { txHash: '0xtxhash123' }, expect.objectContaining({ severity: 1 }));
 
       // Should have added tx hint
       const builder = createMockBuilder();
@@ -352,7 +352,7 @@ describe('Web3Plugin', () => {
         message: 'user rejected',
         code: 4001,
         data: 'rejected',
-      }));
+      }), expect.objectContaining({ severity: 3 }));
     });
 
     it('should throw if no provider configured', async () => {

@@ -6,6 +6,7 @@ import type { MiradorPlugin, PluginSetupResult, TraceContext, FlushBuilder } fro
 import { HintType } from './hints';
 import {
   Chain,
+  Severity,
   type ChainInput,
   type EIP1193Provider,
   type TxHintOptions,
@@ -169,7 +170,7 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
           to: tx.to,
           value: tx.value?.toString(),
           data: tx.data ? `${tx.data.slice(0, 10)}...` : undefined,
-        });
+        }, { severity: Severity.Info });
 
         const chain = resolveChain(undefined, tx.chainId);
 
@@ -181,7 +182,7 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
 
           if (tx.data) { addInputData(tx.data); }
           addTxHint(txHash, chain);
-          ctx.addEvent('tx:sent', { txHash });
+          ctx.addEvent('tx:sent', { txHash }, { severity: Severity.Info });
           return txHash;
         } catch (err) {
           const error = err as Error & { code?: unknown; data?: unknown };
@@ -189,7 +190,7 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
             message: error.message,
             code: error.code,
             data: error.data,
-          });
+          }, { severity: Severity.Error });
           throw err;
         }
       }
