@@ -70,11 +70,19 @@ export interface PluginSetupResult<TMethods> {
 /**
  * A Mirador plugin definition.
  * @template TMethods The methods this plugin adds to Trace
+ *
+ * **Important:** `setup()` is called for every trace, including sampled-out
+ * traces (NoopTrace). Plugins **must** check `ctx.isClosed()` before starting
+ * timers, intervals, or listeners to avoid resource leaks on sampled-out traces.
  */
 export interface MiradorPlugin<TMethods = Record<string, never>> {
   /** Unique plugin name (used for error messages and deduplication) */
   name: string;
-  /** Called once per trace creation. Returns methods and lifecycle hooks. */
+  /**
+   * Called once per trace creation. Returns methods and lifecycle hooks.
+   * Check `ctx.isClosed()` before starting async work — sampled-out traces
+   * pass a closed context.
+   */
   setup(ctx: TraceContext): PluginSetupResult<TMethods>;
 }
 
