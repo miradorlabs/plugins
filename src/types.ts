@@ -115,4 +115,6 @@ export interface AddEventOptions {
   captureStackTrace?: boolean;
   /** Event severity (defaults to Info) */
   severity?: Severity;
+  /** Timestamp for the event (defaults to current date) */
+  timestamp?: Date;
 }
