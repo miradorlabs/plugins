@@ -1,6 +1,6 @@
 {
   "name": "@miradorlabs/plugins",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Mirador SDK plugins for blockchain transaction and Safe multisig tracing",
   "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
