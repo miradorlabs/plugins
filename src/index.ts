@@ -5,7 +5,14 @@
 
 // Plugin system
 export { Web3Plugin } from './web3-plugin';
-export type { Web3PluginOptions, Web3Methods, EvmMethods, SafeNamespaceMethods } from './web3-plugin';
+export type {
+  Web3PluginOptions,
+  Web3Methods,
+  EvmMethods,
+  SafeNamespaceMethods,
+  RelayNamespaceMethods,
+  RelayQuoteHintInput,
+} from './web3-plugin';
 export type {
   MiradorPlugin,
   TraceContext,
@@ -36,6 +43,7 @@ export {
   type TxHashHint,
   type SafeMsgHintData,
   type SafeTxHintData,
+  type RelayQuoteHintData,
   type Logger,
   type AddEventOptions,
 } from './types';

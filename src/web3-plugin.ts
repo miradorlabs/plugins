@@ -15,8 +15,17 @@ import {
   type TxHashHint,
   type SafeMsgHintData,
   type SafeTxHintData,
+  type RelayQuoteHintData,
 } from './types';
 import { toChain, resolveChainInput } from './chains';
+
+/** Input shape for `trace.web3.relay.addRelayQuoteHint(...)` — everything in
+ *  RelayQuoteHintData except the wire timestamp (which the plugin stamps
+ *  when the call is made). Users pass this; the plugin handles the rest. */
+export type RelayQuoteHintInput = Omit<RelayQuoteHintData, 'timestamp'> & {
+  /** Optional override; defaults to current time when omitted. */
+  timestamp?: Date;
+};
 
 /** Options for the Web3Plugin */
 export interface Web3PluginOptions {
@@ -41,9 +50,29 @@ export interface SafeNamespaceMethods {
   addTxHint(safeTxHash: string, chain: ChainInput, details?: string): void;
 }
 
+/** The leaf methods that Web3Plugin exposes under web3.relay. */
+export interface RelayNamespaceMethods {
+  /**
+   * Record a Relay (relay.link) intent hint at quote time. Ties the Relay
+   * `requestId` to this trace so the relayhint backend processor can pick
+   * the intent up and emit the full lifecycle (deposit → solver-committed →
+   * fill, or refund / failed / not-found) as events on the trace.
+   *
+   * Call this once you have a resolved quote from Relay — before the user
+   * deposits. The backend uses `originChainId` and `destChainId` to seed
+   * its state machine; the remaining fields are optional but populate the
+   * trace detail view with chain names, amounts, currencies, and addresses.
+   */
+  addRelayQuoteHint(hint: RelayQuoteHintInput): void;
+}
+
 /** The namespaced methods that Web3Plugin adds to Trace */
 export interface Web3Methods {
-  web3: { evm: EvmMethods; safe: SafeNamespaceMethods };
+  web3: {
+    evm: EvmMethods;
+    safe: SafeNamespaceMethods;
+    relay: RelayNamespaceMethods;
+  };
 }
 
 /**
@@ -98,6 +127,7 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
       const pendingTxHashHints: TxHashHint[] = [];
       const pendingSafeMsgHints: SafeMsgHintData[] = [];
       const pendingSafeTxHints: SafeTxHintData[] = [];
+      const pendingRelayQuoteHints: RelayQuoteHintData[] = [];
 
       // Initiate async chain detection if provider was given
       if (provider) {
@@ -217,6 +247,36 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
         ctx.scheduleFlush();
       }
 
+      // --- Relay methods ---
+
+      function relayAddQuoteHint(input: RelayQuoteHintInput): void {
+        if (ctx.isClosed()) {
+          ctx.logger.warn('[Web3Plugin] Trace is closed, ignoring addRelayQuoteHint');
+          return;
+        }
+        if (!input?.requestId) {
+          throw new Error('[Web3Plugin] addRelayQuoteHint: requestId is required');
+        }
+        // Backend requires non-zero origin and destination chain IDs to seed
+        // its state machine. Fail loudly here rather than silently dropping
+        // the hint server-side.
+        const originChainId = Number(input.originChainId);
+        const destChainId = Number(input.destChainId);
+        if (!Number.isFinite(originChainId) || originChainId <= 0) {
+          throw new Error('[Web3Plugin] addRelayQuoteHint: originChainId must be a positive integer');
+        }
+        if (!Number.isFinite(destChainId) || destChainId <= 0) {
+          throw new Error('[Web3Plugin] addRelayQuoteHint: destChainId must be a positive integer');
+        }
+        pendingRelayQuoteHints.push({
+          ...input,
+          originChainId,
+          destChainId,
+          timestamp: input.timestamp ?? new Date(),
+        });
+        ctx.scheduleFlush();
+      }
+
       // --- Lifecycle hooks ---
 
       function onFlush(builder: FlushBuilder): void {
@@ -234,16 +294,27 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
           builder.addHint(HintType.SAFE_TX, hint);
         }
         pendingSafeTxHints.length = 0;
+
+        for (const hint of pendingRelayQuoteHints) {
+          builder.addHint(HintType.RELAY_QUOTE, hint);
+        }
+        pendingRelayQuoteHints.length = 0;
       }
 
       function hasPendingData(): boolean {
-        return pendingTxHashHints.length > 0 || pendingSafeMsgHints.length > 0 || pendingSafeTxHints.length > 0;
+        return (
+          pendingTxHashHints.length > 0 ||
+          pendingSafeMsgHints.length > 0 ||
+          pendingSafeTxHints.length > 0 ||
+          pendingRelayQuoteHints.length > 0
+        );
       }
 
       function onClose(): void {
         pendingTxHashHints.length = 0;
         pendingSafeMsgHints.length = 0;
         pendingSafeTxHints.length = 0;
+        pendingRelayQuoteHints.length = 0;
         provider = null;
         providerChain = null;
       }
@@ -263,6 +334,9 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
             safe: {
               addMsgHint: safeAddMsgHint,
               addTxHint: safeAddTxHint,
+            },
+            relay: {
+              addRelayQuoteHint: relayAddQuoteHint,
             },
           },
         },

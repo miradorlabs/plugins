@@ -31,7 +31,7 @@ nodejs-sdk/src/ingest/
 
 ### Web3Plugin
 
-Adds blockchain transaction tracing methods under `trace.web3.evm` and Gnosis Safe multisig tracking under `trace.web3.safe`.
+Adds blockchain transaction tracing methods under `trace.web3.evm`, Gnosis Safe multisig tracking under `trace.web3.safe`, and Relay (relay.link) intent tracking under `trace.web3.relay`.
 
 ```typescript
 import { Client, Web3Plugin } from '@miradorlabs/web-sdk';
@@ -62,7 +62,33 @@ const txHash2 = await trace.web3.evm.sendTransaction(txParams, otherProvider);
 // Safe methods (under web3.safe namespace):
 trace.web3.safe.addMsgHint('0xmsg...', 'ethereum', 'Approval message');
 trace.web3.safe.addTxHint('0xsafetx...', 'ethereum', 'Execution tx');
+
+// Relay methods (under web3.relay namespace):
+// Call once you've resolved a Relay quote — *before* the user deposits.
+// `requestId`, `originChainId`, `destChainId` are required. Every other
+// field is optional metadata that enriches the trace detail view.
+trace.web3.relay.addRelayQuoteHint({
+  requestId: 'rly_request_123',   // Relay's API correlation key
+  originChainId: 1,               // mainnet
+  destChainId: 8453,              // Base
+  // Optional snapshot fields:
+  orderId: 'ord_42',
+  onChainId: '0x...',
+  originChainName: 'ethereum',
+  destChainName: 'base',
+  originCurrency: 'USDC',
+  destCurrency: 'USDC',
+  depositor: '0xdep...',
+  recipient: '0xrec...',
+  solverAddress: '0xsolver...',
+  depositoryAddress: '0xdepo...',
+  originAmount: '1000000',
+  destExpectedAmount: '999000',
+  destMinimumAmount: '980000',
+});
 ```
+
+> The plugin serialises the quote into the snake_case JSON `details` payload that the relayhint backend processor expects. From there the processor polls Relay's status feed and emits the full lifecycle — deposit → solver-committed → fill (or refund / failed / not-found) — as events on the trace.
 
 ### Method Chaining
 
@@ -72,6 +98,7 @@ All void-returning plugin methods support chaining. Chained calls return the roo
 trace
   .web3.evm.addTxHint('0x123...', 'ethereum')
   .web3.safe.addMsgHint('0xabc...', 'ethereum')
+  .web3.relay.addRelayQuoteHint({ requestId: 'rly_...', originChainId: 1, destChainId: 8453 })
   .addAttribute('user', '0xdef...')
   .addTag('swap');
 ```
