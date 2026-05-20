@@ -99,6 +99,27 @@ export interface SafeTxHintData {
 }
 
 /**
+ * Relay (relay.link) quote hint — submitted at quote time, before the user
+ * has deposited. Ties a Relay intent (by `requestId`) to the current trace.
+ * The relayhint processor on the platform side resolves the full quote
+ * server-side using bridge-api and Relay's status feed, then emits the
+ * full lifecycle (deposit, solver-committed, fill, refund, etc.) onto the
+ * trace — the SDK never needs to ship the quote payload itself.
+ *
+ * `requestId` is required. `message` is an optional free-form note that
+ * rides on the proto `RelayHint.details` field — useful for tagging a
+ * hint with extra debugging context (e.g. which call site queued it).
+ */
+export interface RelayQuoteHintData {
+  /** Relay protocol requestId — the API correlation key. Required. */
+  requestId: string;
+  /** Optional free-form note attached to the hint. */
+  message?: string;
+  /** When the hint was recorded (defaults to the addQuoteHint call time). */
+  timestamp: Date;
+}
+
+/**
  * Event severity levels.
  */
 export enum Severity {

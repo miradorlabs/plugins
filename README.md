@@ -31,7 +31,7 @@ nodejs-sdk/src/ingest/
 
 ### Web3Plugin
 
-Adds blockchain transaction tracing methods under `trace.web3.evm` and Gnosis Safe multisig tracking under `trace.web3.safe`.
+Adds blockchain transaction tracing methods under `trace.web3.evm`, Gnosis Safe multisig tracking under `trace.web3.safe`, and Relay (relay.link) intent tracking under `trace.web3.relay`.
 
 ```typescript
 import { Client, Web3Plugin } from '@miradorlabs/web-sdk';
@@ -62,7 +62,19 @@ const txHash2 = await trace.web3.evm.sendTransaction(txParams, otherProvider);
 // Safe methods (under web3.safe namespace):
 trace.web3.safe.addMsgHint('0xmsg...', 'ethereum', 'Approval message');
 trace.web3.safe.addTxHint('0xsafetx...', 'ethereum', 'Execution tx');
+
+// Relay methods (under web3.relay namespace):
+// Call once Relay has returned a requestId for the user's intent —
+// before they deposit. The relayhint backend processor resolves the
+// full quote server-side from the requestId and emits the lifecycle
+// (deposit → solver-committed → fill, or refund / failed / not-found)
+// as events on the trace. Optional second argument is a free-form
+// note that rides on RelayHint.details.
+trace.web3.relay.addQuoteHint('rly_request_123');
+trace.web3.relay.addQuoteHint('rly_request_456', 'queued from swap modal');
 ```
+
+> The processor learns chain IDs and tx hashes from Relay's status feed (`GetRelayIntentStatus`) — the SDK doesn't need to ship the quote payload.
 
 ### Method Chaining
 
@@ -72,6 +84,7 @@ All void-returning plugin methods support chaining. Chained calls return the roo
 trace
   .web3.evm.addTxHint('0x123...', 'ethereum')
   .web3.safe.addMsgHint('0xabc...', 'ethereum')
+  .web3.relay.addQuoteHint('rly_request_123')
   .addAttribute('user', '0xdef...')
   .addTag('swap');
 ```
