@@ -11,7 +11,6 @@ export type {
   EvmMethods,
   SafeNamespaceMethods,
   RelayNamespaceMethods,
-  RelayQuoteHintInput,
 } from './web3-plugin';
 export type {
   MiradorPlugin,

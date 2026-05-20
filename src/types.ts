@@ -100,52 +100,21 @@ export interface SafeTxHintData {
 
 /**
  * Relay (relay.link) quote hint — submitted at quote time, before the user
- * has deposited. Ties a Relay intent (by `requestId`) to the current trace
- * and seeds the relayhint processor's state machine with the resolved quote
- * snapshot. From there the processor polls Relay's status feed and emits the
+ * has deposited. Ties a Relay intent (by `requestId`) to the current trace.
+ * The relayhint processor on the platform side resolves the full quote
+ * server-side using bridge-api and Relay's status feed, then emits the
  * full lifecycle (deposit, solver-committed, fill, refund, etc.) onto the
- * trace.
+ * trace — the SDK never needs to ship the quote payload itself.
  *
- * `requestId`, `originChainId`, and `destChainId` are required by the
- * backend; everything else is optional metadata that improves the trace
- * detail view (chain names, currencies, addresses, amounts). The SDK
- * serialises this object into the JSON `details` payload the processor
- * expects (snake_case keys mirroring the platform's `recoveryQuoteDetails`
- * struct).
+ * `requestId` is required. `message` is an optional free-form note that
+ * rides on the proto `RelayHint.details` field — useful for tagging a
+ * hint with extra debugging context (e.g. which call site queued it).
  */
 export interface RelayQuoteHintData {
   /** Relay protocol requestId — the API correlation key. Required. */
   requestId: string;
-  /** Origin (source) chain ID for the bridge. Required, non-zero. */
-  originChainId: number | bigint;
-  /** Destination chain ID for the bridge. Required, non-zero. */
-  destChainId: number | bigint;
-  /** Relay order ID (optional, surfaced in trace detail view). */
-  orderId?: string;
-  /** Relay's 32-byte derived on-chain correlation id. */
-  onChainId?: string;
-  /** Human-readable origin chain name (e.g. "ethereum"). */
-  originChainName?: string;
-  /** Human-readable destination chain name (e.g. "base"). */
-  destChainName?: string;
-  /** Origin currency identifier (address or symbol per Relay convention). */
-  originCurrency?: string;
-  /** Destination currency identifier (address or symbol per Relay convention). */
-  destCurrency?: string;
-  /** Depositor address on origin chain. */
-  depositor?: string;
-  /** Recipient address on destination chain. */
-  recipient?: string;
-  /** Solver address (if known from quote response). */
-  solverAddress?: string;
-  /** Relay depository contract address on the origin chain. */
-  depositoryAddress?: string;
-  /** Origin amount, atomic string (eg "1000000000000000000"). */
-  originAmount?: string;
-  /** Expected destination amount, atomic string. */
-  destExpectedAmount?: string;
-  /** Minimum destination amount after slippage, atomic string. */
-  destMinimumAmount?: string;
+  /** Optional free-form note attached to the hint. */
+  message?: string;
   /** When the hint was recorded (defaults to the addQuoteHint call time). */
   timestamp: Date;
 }
