@@ -67,7 +67,7 @@ trace.web3.safe.addTxHint('0xsafetx...', 'ethereum', 'Execution tx');
 // Call once you've resolved a Relay quote — *before* the user deposits.
 // `requestId`, `originChainId`, `destChainId` are required. Every other
 // field is optional metadata that enriches the trace detail view.
-trace.web3.relay.addRelayQuoteHint({
+trace.web3.relay.addQuoteHint({
   requestId: 'rly_request_123',   // Relay's API correlation key
   originChainId: 1,               // mainnet
   destChainId: 8453,              // Base
@@ -98,7 +98,7 @@ All void-returning plugin methods support chaining. Chained calls return the roo
 trace
   .web3.evm.addTxHint('0x123...', 'ethereum')
   .web3.safe.addMsgHint('0xabc...', 'ethereum')
-  .web3.relay.addRelayQuoteHint({ requestId: 'rly_...', originChainId: 1, destChainId: 8453 })
+  .web3.relay.addQuoteHint({ requestId: 'rly_...', originChainId: 1, destChainId: 8453 })
   .addAttribute('user', '0xdef...')
   .addTag('swap');
 ```

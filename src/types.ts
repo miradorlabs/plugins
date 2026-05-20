@@ -146,7 +146,7 @@ export interface RelayQuoteHintData {
   destExpectedAmount?: string;
   /** Minimum destination amount after slippage, atomic string. */
   destMinimumAmount?: string;
-  /** When the hint was recorded (defaults to the addRelayQuoteHint call time). */
+  /** When the hint was recorded (defaults to the addQuoteHint call time). */
   timestamp: Date;
 }
 

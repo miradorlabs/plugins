@@ -19,7 +19,7 @@ import {
 } from './types';
 import { toChain, resolveChainInput } from './chains';
 
-/** Input shape for `trace.web3.relay.addRelayQuoteHint(...)` — everything in
+/** Input shape for `trace.web3.relay.addQuoteHint(...)` — everything in
  *  RelayQuoteHintData except the wire timestamp (which the plugin stamps
  *  when the call is made). Users pass this; the plugin handles the rest. */
 export type RelayQuoteHintInput = Omit<RelayQuoteHintData, 'timestamp'> & {
@@ -63,7 +63,7 @@ export interface RelayNamespaceMethods {
    * its state machine; the remaining fields are optional but populate the
    * trace detail view with chain names, amounts, currencies, and addresses.
    */
-  addRelayQuoteHint(hint: RelayQuoteHintInput): void;
+  addQuoteHint(hint: RelayQuoteHintInput): void;
 }
 
 /** The namespaced methods that Web3Plugin adds to Trace */
@@ -249,13 +249,13 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
 
       // --- Relay methods ---
 
-      function relayAddQuoteHint(input: RelayQuoteHintInput): void {
+      function addQuoteHint(input: RelayQuoteHintInput): void {
         if (ctx.isClosed()) {
-          ctx.logger.warn('[Web3Plugin] Trace is closed, ignoring addRelayQuoteHint');
+          ctx.logger.warn('[Web3Plugin] Trace is closed, ignoring addQuoteHint');
           return;
         }
         if (!input?.requestId) {
-          throw new Error('[Web3Plugin] addRelayQuoteHint: requestId is required');
+          throw new Error('[Web3Plugin] addQuoteHint: requestId is required');
         }
         // Backend requires non-zero origin and destination chain IDs to seed
         // its state machine. Fail loudly here rather than silently dropping
@@ -263,10 +263,10 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
         const originChainId = Number(input.originChainId);
         const destChainId = Number(input.destChainId);
         if (!Number.isFinite(originChainId) || originChainId <= 0) {
-          throw new Error('[Web3Plugin] addRelayQuoteHint: originChainId must be a positive integer');
+          throw new Error('[Web3Plugin] addQuoteHint: originChainId must be a positive integer');
         }
         if (!Number.isFinite(destChainId) || destChainId <= 0) {
-          throw new Error('[Web3Plugin] addRelayQuoteHint: destChainId must be a positive integer');
+          throw new Error('[Web3Plugin] addQuoteHint: destChainId must be a positive integer');
         }
         pendingRelayQuoteHints.push({
           ...input,
@@ -336,7 +336,7 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
               addTxHint: safeAddTxHint,
             },
             relay: {
-              addRelayQuoteHint: relayAddQuoteHint,
+              addQuoteHint,
             },
           },
         },
