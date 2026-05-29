@@ -14,11 +14,12 @@ const VALID_CHAIN_IDS = new Set<number>(Object.values(Chain).filter((v): v is nu
  */
 const CHAIN_NAME_MAP: Record<ChainName, Chain> = {
   ethereum: Chain.Ethereum,
-  polygon: Chain.Polygon,
-  arbitrum: Chain.Arbitrum,
-  base: Chain.Base,
   optimism: Chain.Optimism,
   bsc: Chain.BSC,
+  polygon: Chain.Polygon,
+  base: Chain.Base,
+  arbitrum: Chain.Arbitrum,
+  hyperevm: Chain.HyperEVM,
 };
 
 /**

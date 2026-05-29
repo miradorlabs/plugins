@@ -26,6 +26,10 @@ describe('toChain', () => {
     expect(toChain(56)).toBe(Chain.BSC);
   });
 
+  it('should map hyperevm chain ID', () => {
+    expect(toChain(999)).toBe(Chain.HyperEVM);
+  });
+
   it('should return undefined for unknown chain IDs', () => {
     expect(toChain(999999)).toBeUndefined();
     expect(toChain(0)).toBeUndefined();

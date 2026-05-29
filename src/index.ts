@@ -10,6 +10,7 @@ export type {
   Web3Methods,
   EvmMethods,
   SafeNamespaceMethods,
+  SolanaNamespaceMethods,
   RelayNamespaceMethods,
 } from './web3-plugin';
 export type {
@@ -39,9 +40,10 @@ export {
   type TxHintOptions,
   type TransactionLike,
   type TransactionRequest,
-  type TxHashHint,
+  type EvmTxHint,
   type SafeMsgHintData,
   type SafeTxHintData,
+  type SolanaTxHint,
   type RelayQuoteHintData,
   type Logger,
   type AddEventOptions,
