@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/miradorlabs/plugins/compare/v1.1.0...v1.2.0) (2026-05-29)
+
+
+### Features
+
+* **chains:** add solana tx hint and hyperevm to chains ([e29ae33](https://github.com/miradorlabs/plugins/commit/e29ae3359df0f11429beac975422622f1be7025e))
+* **chains:** add solana tx hint and hyperevm to chains ([5d49adf](https://github.com/miradorlabs/plugins/commit/5d49adf2ad84f28b8c8beed050a78349adb657d1))
+
 ## [1.1.0](https://github.com/miradorlabs/plugins/compare/v1.0.1...v1.1.0) (2026-05-20)
 
 
