@@ -12,9 +12,10 @@ import {
   type TxHintOptions,
   type TransactionLike,
   type TransactionRequest,
-  type TxHashHint,
+  type EvmTxHint,
   type SafeMsgHintData,
   type SafeTxHintData,
+  type SolanaTxHint,
   type RelayQuoteHintData,
 } from './types';
 import { toChain, resolveChainInput } from './chains';
@@ -42,6 +43,16 @@ export interface SafeNamespaceMethods {
   addTxHint(safeTxHash: string, chain: ChainInput, details?: string): void;
 }
 
+/** The leaf methods that Web3Plugin exposes under web3.solana. */
+export interface SolanaNamespaceMethods {
+  /**
+   * Record a Solana transaction signature hint. The chain identity is
+   * implicit — Solana hints emit `chain_name = "solana"` on the wire and
+   * carry no numeric chain ID.
+   */
+  addTxHint(signature: string, details?: string): void;
+}
+
 /** The leaf methods that Web3Plugin exposes under web3.relay. */
 export interface RelayNamespaceMethods {
   /**
@@ -64,6 +75,7 @@ export interface Web3Methods {
   web3: {
     evm: EvmMethods;
     safe: SafeNamespaceMethods;
+    solana: SolanaNamespaceMethods;
     relay: RelayNamespaceMethods;
   };
 }
@@ -117,9 +129,10 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
       let providerChain: Chain | null = null;
 
       // Pending data managed by this plugin
-      const pendingTxHashHints: TxHashHint[] = [];
+      const pendingEvmTxHints: EvmTxHint[] = [];
       const pendingSafeMsgHints: SafeMsgHintData[] = [];
       const pendingSafeTxHints: SafeTxHintData[] = [];
+      const pendingSolanaTxHints: SolanaTxHint[] = [];
       const pendingRelayQuoteHints: RelayQuoteHintData[] = [];
 
       // Initiate async chain detection if provider was given
@@ -144,7 +157,7 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
           if (opts.input) { addInputData(opts.input); }
           details = opts.details;
         }
-        pendingTxHashHints.push({ txHash, chain: resolved, details, timestamp: new Date() });
+        pendingEvmTxHints.push({ txHash, chain: resolved, details, timestamp: new Date() });
         ctx.scheduleFlush();
       }
 
@@ -240,6 +253,20 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
         ctx.scheduleFlush();
       }
 
+      // --- Solana methods ---
+
+      function solanaAddTxHint(signature: string, details?: string): void {
+        if (ctx.isClosed()) {
+          ctx.logger.warn('[Web3Plugin] Trace is closed, ignoring addTxHint');
+          return;
+        }
+        if (!signature) {
+          throw new Error('[Web3Plugin] solana.addTxHint: signature is required');
+        }
+        pendingSolanaTxHints.push({ signature, details, timestamp: new Date() });
+        ctx.scheduleFlush();
+      }
+
       // --- Relay methods ---
 
       function addQuoteHint(requestId: string, message?: string): void {
@@ -261,10 +288,10 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
       // --- Lifecycle hooks ---
 
       function onFlush(builder: FlushBuilder): void {
-        for (const hint of pendingTxHashHints) {
+        for (const hint of pendingEvmTxHints) {
           builder.addHint(HintType.TX_HASH, hint);
         }
-        pendingTxHashHints.length = 0;
+        pendingEvmTxHints.length = 0;
 
         for (const hint of pendingSafeMsgHints) {
           builder.addHint(HintType.SAFE_MSG, hint);
@@ -276,6 +303,11 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
         }
         pendingSafeTxHints.length = 0;
 
+        for (const hint of pendingSolanaTxHints) {
+          builder.addHint(HintType.SOLANA_TX, hint);
+        }
+        pendingSolanaTxHints.length = 0;
+
         for (const hint of pendingRelayQuoteHints) {
           builder.addHint(HintType.RELAY_QUOTE, hint);
         }
@@ -284,17 +316,19 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
 
       function hasPendingData(): boolean {
         return (
-          pendingTxHashHints.length > 0 ||
+          pendingEvmTxHints.length > 0 ||
           pendingSafeMsgHints.length > 0 ||
           pendingSafeTxHints.length > 0 ||
+          pendingSolanaTxHints.length > 0 ||
           pendingRelayQuoteHints.length > 0
         );
       }
 
       function onClose(): void {
-        pendingTxHashHints.length = 0;
+        pendingEvmTxHints.length = 0;
         pendingSafeMsgHints.length = 0;
         pendingSafeTxHints.length = 0;
+        pendingSolanaTxHints.length = 0;
         pendingRelayQuoteHints.length = 0;
         provider = null;
         providerChain = null;
@@ -315,6 +349,9 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
             safe: {
               addMsgHint: safeAddMsgHint,
               addTxHint: safeAddTxHint,
+            },
+            solana: {
+              addTxHint: solanaAddTxHint,
             },
             relay: {
               addQuoteHint,

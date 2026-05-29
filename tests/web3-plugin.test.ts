@@ -2,7 +2,7 @@ import { Web3Plugin } from '../src/web3-plugin';
 import { HintType } from '../src/hints';
 import { Chain } from '../src/types';
 import type { TraceContext, FlushBuilder } from '../src/plugin';
-import type { EIP1193Provider, TxHashHint, SafeMsgHintData, SafeTxHintData } from '../src/types';
+import type { EIP1193Provider, EvmTxHint, SafeMsgHintData, SafeTxHintData } from '../src/types';
 
 // --- Test helpers ---
 
@@ -124,7 +124,7 @@ describe('Web3Plugin', () => {
       methods.web3.evm.addTxHint('0xabc', Chain.Polygon, 'swap tx');
       onFlush!(builder);
 
-      const hint = builder.hints[0].data as TxHashHint;
+      const hint = builder.hints[0].data as EvmTxHint;
       expect(hint.details).toBe('swap tx');
     });
 
@@ -145,7 +145,7 @@ describe('Web3Plugin', () => {
       onFlush!(builder);
 
       expect(ctx.addEvent).toHaveBeenCalledWith('Tx input data', '0xdeadbeef');
-      const hint = builder.hints[0].data as TxHashHint;
+      const hint = builder.hints[0].data as EvmTxHint;
       expect(hint.details).toBe('swap');
     });
 
@@ -194,7 +194,7 @@ describe('Web3Plugin', () => {
       methods.web3.evm.addTx({ hash: '0xtxhash', chainId: 1 });
       onFlush!(builder);
 
-      const hint = builder.hints[0].data as TxHashHint;
+      const hint = builder.hints[0].data as EvmTxHint;
       expect(hint.txHash).toBe('0xtxhash');
       expect(hint.chain).toBe(Chain.Ethereum);
     });
@@ -223,7 +223,7 @@ describe('Web3Plugin', () => {
       methods.web3.evm.addTx({ hash: '0xtxhash', chainId: 137 }, Chain.Arbitrum);
       onFlush!(builder);
 
-      const hint = builder.hints[0].data as TxHashHint;
+      const hint = builder.hints[0].data as EvmTxHint;
       expect(hint.chain).toBe(Chain.Arbitrum);
     });
 

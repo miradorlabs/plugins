@@ -51,17 +51,25 @@ export interface Logger {
  */
 export enum Chain {
   Ethereum = 1,
-  Polygon = 137,
-  Arbitrum = 42161,
-  Base = 8453,
   Optimism = 10,
   BSC = 56,
+  Polygon = 137,
+  Base = 8453,
+  Arbitrum = 42161,
+  HyperEVM = 999,
 }
 
 /**
  * Chain name strings (legacy / convenience).
  */
-export type ChainName = 'ethereum' | 'polygon' | 'arbitrum' | 'base' | 'optimism' | 'bsc';
+export type ChainName =
+  | 'ethereum'
+  | 'optimism'
+  | 'bsc'
+  | 'polygon'
+  | 'base'
+  | 'arbitrum'
+  | 'hyperevm';
 
 /**
  * Accepted chain input — callers can pass either a Chain enum value or a chain name string.
@@ -69,9 +77,10 @@ export type ChainName = 'ethereum' | 'polygon' | 'arbitrum' | 'base' | 'optimism
 export type ChainInput = Chain | ChainName;
 
 /**
- * Transaction hash hint for blockchain correlation
+ * EVM transaction hint for blockchain correlation. The `txHash` field carries
+ * the keccak256 transaction hash.
  */
-export interface TxHashHint {
+export interface EvmTxHint {
   txHash: string;
   chain: Chain;
   details?: string;
@@ -94,6 +103,21 @@ export interface SafeMsgHintData {
 export interface SafeTxHintData {
   safeTxHash: string;
   chain: Chain;
+  details?: string;
+  timestamp: Date;
+}
+
+/**
+ * Solana transaction hint. Solana lives outside the EVM `Chain` enum (no
+ * numeric chain ID), so it carries no chain field — the chain identity is
+ * implicit in the hint type itself and emitted on the wire as
+ * `chain_name = "solana"`. The `signature` field carries the ed25519
+ * transaction signature, which is Solana's unique transaction identifier.
+ */
+export interface SolanaTxHint {
+  /** Solana transaction signature (base58, ~88 chars). */
+  signature: string;
+  /** Optional free-form note attached to the hint. */
   details?: string;
   timestamp: Date;
 }
