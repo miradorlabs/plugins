@@ -5,6 +5,31 @@
   "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "keywords": [
+    "mirador",
+    "tracing",
+    "observability",
+    "blockchain",
+    "web3",
+    "evm",
+    "safe",
+    "solana",
+    "relay"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/miradorlabs/plugins.git"
+  },
+  "homepage": "https://github.com/miradorlabs/plugins#readme",
+  "bugs": {
+    "url": "https://github.com/miradorlabs/plugins/issues"
+  },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
