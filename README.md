@@ -11,7 +11,7 @@ plugins/                    # This package (proto-free)
 │   ├── hints.ts            # HintType constants + HintDataMap type registry
 │   ├── types.ts            # Shared types: Chain, ChainInput, TxHashHint, Logger, etc.
 │   ├── chains.ts           # toChain(), resolveChainInput() utilities
-│   ├── web3-plugin.ts      # Web3Plugin — tx hints, sendTransaction, provider mgmt, Safe hints
+│   ├── web3-plugin.ts      # Web3Plugin — EVM/Solana/Safe/Relay/Canton hints, sendTransaction, provider mgmt
 │   └── index.ts            # Public exports
 
 web-sdk/src/ingest/
@@ -31,7 +31,7 @@ nodejs-sdk/src/ingest/
 
 ### Web3Plugin
 
-Adds blockchain transaction tracing methods under `trace.web3.evm`, Gnosis Safe multisig tracking under `trace.web3.safe`, and Relay (relay.link) intent tracking under `trace.web3.relay`.
+Adds transaction tracing for EVM chains under `trace.web3.evm` and Solana under `trace.web3.solana`, Gnosis Safe multisig tracking under `trace.web3.safe`, Relay (relay.link) intent tracking under `trace.web3.relay`, and Canton (Daml Ledger API) tracking under `trace.web3.canton`.
 
 ```typescript
 import { Client, Web3Plugin } from '@miradorlabs/web-sdk';
@@ -59,6 +59,11 @@ const txHash = await trace.web3.evm.sendTransaction(txParams);
 // Or with an explicit provider:
 const txHash2 = await trace.web3.evm.sendTransaction(txParams, otherProvider);
 
+// Solana methods (under web3.solana namespace):
+// Chain identity is implicit — emitted on the wire as chain_name = "solana".
+trace.web3.solana.addTxHint('5xq7...signature');                 // Record a tx signature
+trace.web3.solana.addTxHint('5xq7...signature', 'swap settled'); // With a note
+
 // Safe methods (under web3.safe namespace):
 trace.web3.safe.addMsgHint('0xmsg...', 'ethereum', 'Approval message');
 trace.web3.safe.addTxHint('0xsafetx...', 'ethereum', 'Execution tx');
@@ -72,9 +77,17 @@ trace.web3.safe.addTxHint('0xsafetx...', 'ethereum', 'Execution tx');
 // note that rides on RelayHint.details.
 trace.web3.relay.addQuoteHint('rly_request_123');
 trace.web3.relay.addQuoteHint('rly_request_456', 'queued from swap modal');
+
+// Canton methods (under web3.canton namespace):
+// Tie a Canton (Daml Ledger API v2) ledger update to the trace by its
+// updateId. party_id is optional — omit it when the participant only
+// co-hosts the contract as an observer. Chain identity is implicit ("canton").
+trace.web3.canton.addTxHint('1220...updateId');
+trace.web3.canton.addTxHint('1220...updateId', 'Alice::1220...');         // scope to a party
+trace.web3.canton.addTxHint('1220...updateId', 'Alice::1220...', 'mint'); // + a note
 ```
 
-> The processor learns chain IDs and tx hashes from Relay's status feed (`GetRelayIntentStatus`) — the SDK doesn't need to ship the quote payload.
+> The processor learns chain IDs and tx hashes from Relay's status feed (`GetRelayIntentStatus`) — the SDK doesn't need to ship the quote payload. Likewise, the canton-hint processor resolves the full transaction server-side from the `updateId` and emits its events onto the trace.
 
 ### Method Chaining
 

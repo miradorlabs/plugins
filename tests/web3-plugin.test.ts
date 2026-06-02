@@ -2,7 +2,7 @@ import { Web3Plugin } from '../src/web3-plugin';
 import { HintType } from '../src/hints';
 import { Chain } from '../src/types';
 import type { TraceContext, FlushBuilder } from '../src/plugin';
-import type { EIP1193Provider, EvmTxHint, SafeMsgHintData, SafeTxHintData } from '../src/types';
+import type { EIP1193Provider, EvmTxHint, SafeMsgHintData, SafeTxHintData, CantonTxHint } from '../src/types';
 
 // --- Test helpers ---
 
@@ -451,6 +451,63 @@ describe('Web3Plugin', () => {
 
       methods.web3.safe.addTxHint('0xsafetxhash', Chain.Ethereum);
       expect(ctx.logger.warn).toHaveBeenCalledWith('[Web3Plugin] Trace is closed, ignoring addTxHint');
+      expect(hasPendingData!()).toBe(false);
+    });
+  });
+
+  describe('web3.canton.addTxHint', () => {
+    it('should add a canton tx hint with just an updateId', () => {
+      const ctx = createMockCtx();
+      const { methods, onFlush } = Web3Plugin().setup(ctx);
+      const builder = createMockBuilder();
+
+      methods.web3.canton.addTxHint('1220abc');
+      expect(ctx.scheduleFlush).toHaveBeenCalled();
+
+      onFlush!(builder);
+      expect(builder.addHint).toHaveBeenCalledWith(
+        HintType.CANTON_TX,
+        expect.objectContaining({ updateId: '1220abc' }),
+      );
+    });
+
+    it('should include partyId and details when provided', () => {
+      const ctx = createMockCtx();
+      const { methods, onFlush } = Web3Plugin().setup(ctx);
+      const builder = createMockBuilder();
+
+      methods.web3.canton.addTxHint('1220abc', 'Alice::1220', 'mint');
+      onFlush!(builder);
+
+      const hint = builder.hints[0].data as CantonTxHint;
+      expect(hint.partyId).toBe('Alice::1220');
+      expect(hint.details).toBe('mint');
+    });
+
+    it('should leave partyId undefined for observer co-hosts', () => {
+      const ctx = createMockCtx();
+      const { methods, onFlush } = Web3Plugin().setup(ctx);
+      const builder = createMockBuilder();
+
+      methods.web3.canton.addTxHint('1220abc');
+      onFlush!(builder);
+
+      const hint = builder.hints[0].data as CantonTxHint;
+      expect(hint.partyId).toBeUndefined();
+    });
+
+    it('should throw when updateId is missing', () => {
+      const ctx = createMockCtx();
+      const { methods } = Web3Plugin().setup(ctx);
+      expect(() => methods.web3.canton.addTxHint('')).toThrow('updateId is required');
+    });
+
+    it('should be ignored when trace is closed', () => {
+      const ctx = createMockCtx({ isClosed: jest.fn().mockReturnValue(true) });
+      const { methods, hasPendingData } = Web3Plugin().setup(ctx);
+
+      methods.web3.canton.addTxHint('1220abc');
+      expect(ctx.logger.warn).toHaveBeenCalledWith('[Web3Plugin] Trace is closed, ignoring canton.addTxHint');
       expect(hasPendingData!()).toBe(false);
     });
   });
