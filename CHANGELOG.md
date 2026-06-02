@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/miradorlabs/plugins/compare/v1.2.0...v1.3.0) (2026-06-02)
+
+
+### Features
+
+* **chains:** add canton network to plugins for tx hint tracking ([#15](https://github.com/miradorlabs/plugins/issues/15)) ([978c7cc](https://github.com/miradorlabs/plugins/commit/978c7cc376942a5f8590846f64ff325044bddcfb))
+
 ## [1.2.0](https://github.com/miradorlabs/plugins/compare/v1.1.0...v1.2.0) (2026-05-29)
 
 
