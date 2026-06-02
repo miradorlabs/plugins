@@ -17,6 +17,7 @@ import {
   type SafeTxHintData,
   type SolanaTxHint,
   type RelayQuoteHintData,
+  type CantonTxHint,
 } from './types';
 import { toChain, resolveChainInput } from './chains';
 
@@ -70,6 +71,22 @@ export interface RelayNamespaceMethods {
   addQuoteHint(requestId: string, message?: string): void;
 }
 
+/** The leaf methods that Web3Plugin exposes under web3.canton. */
+export interface CantonNamespaceMethods {
+  /**
+   * Record a Canton (Daml Ledger API v2) transaction hint by its ledger
+   * `updateId`. Ties the on-ledger update to this trace so the canton-hint
+   * backend processor can resolve it and emit the transaction details as
+   * events on the trace.
+   *
+   * `partyId` is optional — include it to scope the update to a specific
+   * party, or omit it when the participant only co-hosts the contract as an
+   * observer (the `updateId` alone is enough to resolve it). The chain
+   * identity is implicit ("canton"); no chain ID is carried.
+   */
+  addTxHint(updateId: string, partyId?: string, details?: string): void;
+}
+
 /** The namespaced methods that Web3Plugin adds to Trace */
 export interface Web3Methods {
   web3: {
@@ -77,6 +94,7 @@ export interface Web3Methods {
     safe: SafeNamespaceMethods;
     solana: SolanaNamespaceMethods;
     relay: RelayNamespaceMethods;
+    canton: CantonNamespaceMethods;
   };
 }
 
@@ -134,6 +152,7 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
       const pendingSafeTxHints: SafeTxHintData[] = [];
       const pendingSolanaTxHints: SolanaTxHint[] = [];
       const pendingRelayQuoteHints: RelayQuoteHintData[] = [];
+      const pendingCantonTxHints: CantonTxHint[] = [];
 
       // Initiate async chain detection if provider was given
       if (provider) {
@@ -285,6 +304,20 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
         ctx.scheduleFlush();
       }
 
+      // --- Canton methods ---
+
+      function cantonAddTxHint(updateId: string, partyId?: string, details?: string): void {
+        if (ctx.isClosed()) {
+          ctx.logger.warn('[Web3Plugin] Trace is closed, ignoring canton.addTxHint');
+          return;
+        }
+        if (!updateId) {
+          throw new Error('[Web3Plugin] canton.addTxHint: updateId is required');
+        }
+        pendingCantonTxHints.push({ updateId, partyId, details, timestamp: new Date() });
+        ctx.scheduleFlush();
+      }
+
       // --- Lifecycle hooks ---
 
       function onFlush(builder: FlushBuilder): void {
@@ -312,6 +345,11 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
           builder.addHint(HintType.RELAY_QUOTE, hint);
         }
         pendingRelayQuoteHints.length = 0;
+
+        for (const hint of pendingCantonTxHints) {
+          builder.addHint(HintType.CANTON_TX, hint);
+        }
+        pendingCantonTxHints.length = 0;
       }
 
       function hasPendingData(): boolean {
@@ -320,7 +358,8 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
           pendingSafeMsgHints.length > 0 ||
           pendingSafeTxHints.length > 0 ||
           pendingSolanaTxHints.length > 0 ||
-          pendingRelayQuoteHints.length > 0
+          pendingRelayQuoteHints.length > 0 ||
+          pendingCantonTxHints.length > 0
         );
       }
 
@@ -330,6 +369,7 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
         pendingSafeTxHints.length = 0;
         pendingSolanaTxHints.length = 0;
         pendingRelayQuoteHints.length = 0;
+        pendingCantonTxHints.length = 0;
         provider = null;
         providerChain = null;
       }
@@ -355,6 +395,9 @@ export function Web3Plugin(options?: Web3PluginOptions): MiradorPlugin<Web3Metho
             },
             relay: {
               addQuoteHint,
+            },
+            canton: {
+              addTxHint: cantonAddTxHint,
             },
           },
         },

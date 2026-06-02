@@ -144,6 +144,27 @@ export interface RelayQuoteHintData {
 }
 
 /**
+ * Canton (Daml Ledger API v2) transaction hint. Like Solana, Canton lives
+ * outside the EVM `Chain` enum (no numeric chain ID), so it carries no chain
+ * field — the chain identity is implicit in the hint type and emitted on the
+ * wire as `chain_name = "canton"`. The `updateId` is the Canton ledger update
+ * id (a transaction's unique identifier).
+ *
+ * `partyId` is optional: include it to scope the update to a specific party,
+ * or omit it when the participant only co-hosts the contract as an observer
+ * (the backend can still resolve the update from the `updateId` alone).
+ */
+export interface CantonTxHint {
+  /** Canton ledger update id (the transaction's unique identifier). Required. */
+  updateId: string;
+  /** Optional party id to scope the update to. Omit for observer co-hosts. */
+  partyId?: string;
+  /** Optional free-form note attached to the hint. */
+  details?: string;
+  timestamp: Date;
+}
+
+/**
  * Event severity levels.
  */
 export enum Severity {

@@ -12,6 +12,7 @@ export type {
   SafeNamespaceMethods,
   SolanaNamespaceMethods,
   RelayNamespaceMethods,
+  CantonNamespaceMethods,
 } from './web3-plugin';
 export type {
   MiradorPlugin,
@@ -45,6 +46,7 @@ export {
   type SafeTxHintData,
   type SolanaTxHint,
   type RelayQuoteHintData,
+  type CantonTxHint,
   type Logger,
   type AddEventOptions,
 } from './types';

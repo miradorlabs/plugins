@@ -8,6 +8,7 @@ import type {
   SafeTxHintData,
   SolanaTxHint,
   RelayQuoteHintData,
+  CantonTxHint,
 } from './types';
 
 /** Known hint type string constants */
@@ -21,6 +22,9 @@ export const HintType = {
   /** Relay (relay.link) intent quote hint. Backend wires it into the
    *  `relayHints` field of `FlushTraceData.Plugin`. */
   RELAY_QUOTE: 'relay_quote',
+  /** Canton (Daml Ledger API) transaction hint. Emitted on the wire as a
+   *  CantonTxHint carrying the ledger update id (chain implicit, "canton"). */
+  CANTON_TX: 'canton_tx',
 } as const;
 
 /** The string literal union of all known hint types */
@@ -37,4 +41,5 @@ export interface HintDataMap {
   [HintType.SAFE_TX]: SafeTxHintData;
   [HintType.SOLANA_TX]: SolanaTxHint;
   [HintType.RELAY_QUOTE]: RelayQuoteHintData;
+  [HintType.CANTON_TX]: CantonTxHint;
 }
