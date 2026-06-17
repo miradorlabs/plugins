@@ -1,6 +1,7 @@
 {
   "name": "@miradorlabs/plugins",
   "version": "1.3.0",
+  "packageManager": "pnpm@10.33.0",
   "description": "Mirador SDK plugins for blockchain transaction and Safe multisig tracing",
   "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
@@ -46,11 +47,13 @@
     "release:minor": "npm version minor && git push --follow-tags",
     "release:major": "npm version major && git push --follow-tags"
   },
-  "overrides": {
-    "@jest/transform": "^29.7.0",
-    "jest-util": "^29.7.0",
-    "jest-haste-map": "^29.7.0",
-    "jest-worker": "^29.7.0"
+  "pnpm": {
+    "overrides": {
+      "@jest/transform": "^29.7.0",
+      "jest-util": "^29.7.0",
+      "jest-haste-map": "^29.7.0",
+      "jest-worker": "^29.7.0"
+    }
   },
   "devDependencies": {
     "@commitlint/cli": "^20.4.1",
