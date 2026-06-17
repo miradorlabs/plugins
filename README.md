@@ -377,7 +377,7 @@ function onFlush(builder: FlushBuilder): void {
 ## Building
 
 ```bash
-npm run build   # Outputs to dist/ (ESM + CJS + type declarations)
+pnpm build   # Outputs to dist/ (ESM + CJS + type declarations)
 ```
 
 Both SDKs depend on this package via `"@miradorlabs/plugins": "file:../plugins"` and inline it into their bundles via Rollup's `node-resolve` plugin. Consumers of the SDKs don't need to install this package separately.
