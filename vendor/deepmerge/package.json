@@ -1,0 +1,9 @@
+{
+  "name": "deepmerge",
+  "version": "4.3.1-miradorlabs.1",
+  "description": "deepmerge 4.3.1 patched for GHSA-gcqx-w48m-w2h4, used through a pnpm override until upstream releases a fix",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "license": "MIT",
+  "private": true
+}
