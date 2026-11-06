@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.1](https://github.com/miradorlabs/plugins/compare/v1.3.0...v1.3.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* **deps:** override vulnerable minimatch 10 with 11.0.4 ([#19](https://github.com/miradorlabs/plugins/issues/19)) ([6925747](https://github.com/miradorlabs/plugins/commit/6925747ae076c94ba7b649d47d8a5a425def8efd))
+* **deps:** patch vulnerable transitive tooling dependencies ([#18](https://github.com/miradorlabs/plugins/issues/18)) ([9a28454](https://github.com/miradorlabs/plugins/commit/9a2845415b4612a207d362d0a99618e3c3bb67f6))
+* **deps:** replace deepmerge with a patched vendored copy ([#21](https://github.com/miradorlabs/plugins/issues/21)) ([4840621](https://github.com/miradorlabs/plugins/commit/48406216dad201cf418589753977dfcfb8b52564))
+
 ## [1.3.0](https://github.com/miradorlabs/plugins/compare/v1.2.0...v1.3.0) (2026-06-02)
 
 
